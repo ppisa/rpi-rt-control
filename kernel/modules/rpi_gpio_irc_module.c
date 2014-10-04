@@ -42,11 +42,11 @@ Linux generic GPIO infrastructue.
 
 /* #define IRQ	25 input not used for this variant of processing */
 
-#define IRC1_name	"GPIO2_irc1"
-#define IRC2_name	"GPIO3_irc2"
-#define IRC3_name	"GPIO24_irc1"
-#define IRC4_name	"GPI04_irc2"
-#define IRQ_name	"GPIO23_irq"
+#define IRC1_name	"GPIO23_irc1_chA"
+#define IRC2_name	"GPIO7_irc2_chB"
+#define IRC3_name	"GPIO24_irc3_chA"
+#define IRC4_name	"GPI08_irc4_chB"
+/* #define IRQ_name	"GPIO23_irq" not used */
 
 #define LEFT	-1
 #define RIGHT	1
@@ -287,25 +287,25 @@ gpio_irc_setup_inputs:
 */
 int gpio_irc_setup_inputs(void){
 	if(gpio_request(IRC1, IRC1_name) != 0){
-		printk(KERN_ERR "failed request GPIO 2\n");
+		printk(KERN_ERR "failed request %s\n", IRC1_name);
 		return (-1);
 	}
 	
 	if(gpio_request(IRC2, IRC2_name) != 0){
-		printk(KERN_ERR "failed request GPIO 3\n");
+		printk(KERN_ERR "failed request %s\n", IRC2_name);
 		gpio_free(IRC1);
 		return (-1);
 	}
 	
 	if(gpio_request(IRC3, IRC3_name) != 0){
-		printk(KERN_ERR "failed request GPIO 24\n");
+		printk(KERN_ERR "failed request %s\n", IRC3_name);
 		gpio_free(IRC1);
 		gpio_free(IRC2);
 		return (-1);
 	}
 	
 	if(gpio_request(IRC4, IRC4_name) != 0){
-		printk(KERN_ERR "failed request GPIO 4\n");
+		printk(KERN_ERR "failed request %s\n", IRC4_name);
 		gpio_free(IRC1);
 		gpio_free(IRC2);
 		gpio_free(IRC3);
@@ -322,24 +322,24 @@ int gpio_irc_setup_inputs(void){
 	}*/
 	
 	if(gpio_direction_input(IRC1) != 0){
-		printk(KERN_ERR "failed set direction input GPIO 2\n");
+		printk(KERN_ERR "failed set direction input %s\n", IRC1_name);
 		free_fn();
 		return (-1);
 	}
 
 	if(gpio_direction_input(IRC2) != 0){
-		printk(KERN_ERR "failed set direction input GPIO 3\n");
+		printk(KERN_ERR "failed set direction input %s\n", IRC2_name);
 		free_fn();
 		return (-1);
 	}
 	
 	if(gpio_direction_input(IRC3) != 0){
-		printk(KERN_ERR "failed set direction input GPIO 24\n");
+		printk(KERN_ERR "failed set direction input %s\n", IRC3_name);
 		free_fn();
 		return (-1);
 	}
 	if(gpio_direction_input(IRC4) != 0){
-		printk(KERN_ERR "failed set direction input GPIO 4\n");
+		printk(KERN_ERR "failed set direction input %s\n", IRC4_name);
 		free_fn();
 		return (-1);
 	}
@@ -392,52 +392,52 @@ static int gpio_irc_init(void) {
 
 	irc1_irq_num = gpio_to_irq(IRC1);
 	if(irc1_irq_num < 0){
-		printk(KERN_ERR "failed get IRQ number GPIO 2\n");
+		printk(KERN_ERR "failed get IRQ number %s\n", IRC1_name);
 		free_fn();
 		return (-1);
 	}
 	
 	irc2_irq_num = gpio_to_irq(IRC2);
 	if(irc2_irq_num < 0){
-		printk(KERN_ERR "failed get IRQ number GPIO 3\n");
+		printk(KERN_ERR "failed get IRQ number %s\n", IRC2_name);
 		free_fn();
 		return (-1);
 	}
 	
 	irc3_irq_num = gpio_to_irq(IRC3);
 	if(irc3_irq_num < 0){
-		printk(KERN_ERR "failed get IRQ number GPIO 24\n");
+		printk(KERN_ERR "failed get IRQ number %s\n", IRC3_name);
 		free_fn();
 		return (-1);
 	}
 	
 	irc4_irq_num = gpio_to_irq(IRC4);
 	if(irc4_irq_num < 0){
-		printk(KERN_ERR "failed get IRQ number GPIO 4\n");
+		printk(KERN_ERR "failed get IRQ number %s\n", IRC4_name);
 		free_fn();
 		return (-1);
 	}
 	
 	if(request_irq((unsigned int)irc1_irq_num, irc_irq_handlerAR, IRQF_TRIGGER_RISING, "irc1_irqAS", NULL) != 0){
-		printk(KERN_ERR "failed request IRQ GPIO 2\n");
+		printk(KERN_ERR "failed request IRQ for %s\n", IRC1_name);
 		free_fn();
 		return (-1);
 	}
 	if(request_irq((unsigned int)irc3_irq_num, irc_irq_handlerAF, IRQF_TRIGGER_FALLING, "irc3_irqAN", NULL) != 0){
-		printk(KERN_ERR "failed request IRQ GPIO 24\n");
+		printk(KERN_ERR "failed request IRQ for %s\n", IRC3_name);
 		free_fn();
 		free_irq((unsigned int)irc1_irq_num, NULL);
 		return (-1);
 	}
 	if(request_irq((unsigned int)irc2_irq_num, irc_irq_handlerBF, IRQF_TRIGGER_FALLING, "irc2_irqBS", NULL) != 0){
-		printk(KERN_ERR "failed request IRQ GPIO 3\n");
+		printk(KERN_ERR "failed request IRQ for %s\n", IRC2_name);
 		free_fn();
 		free_irq((unsigned int)irc1_irq_num, NULL);
 		free_irq((unsigned int)irc3_irq_num, NULL);
 		return (-1);
 	}
 	if(request_irq((unsigned int)irc4_irq_num, irc_irq_handlerBR, IRQF_TRIGGER_RISING, "irc4_irqBN", NULL) != 0){
-		printk(KERN_ERR "failed request IRQ GPIO 4\n");
+		printk(KERN_ERR "failed request IRQ for %s\n", IRC4_name);
 		free_fn();
 		free_irq((unsigned int)irc1_irq_num, NULL);
 		free_irq((unsigned int)irc3_irq_num, NULL);
