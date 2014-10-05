@@ -342,7 +342,7 @@ error_gpio_request:
 
 /*
  * gpio_irc_init:
- *	inicializacni metoda modulu
+ *	Module initialization.
  */
 static int gpio_irc_init(void)
 {
@@ -431,7 +431,7 @@ static int gpio_irc_init(void)
 
 /*
  * gpio_irc_exist:
- *	metoda volaná při odstranení modulu
+ *	Called when module is removed.
  */
 static void gpio_irc_exit(void)
 {

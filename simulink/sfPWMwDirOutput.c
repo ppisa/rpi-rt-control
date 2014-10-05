@@ -110,22 +110,22 @@ enum {PWM_MODE_ZERO = 0, PWM_MODE_PLUS_PWM = 1,
 #include <sys/stat.h>
 */
 
-#define BASE		0x20000000		/* základní bázová adresa */
-#define GPIO_BASE 	(BASE + 0x200000)	/* adresa od které začíná GPIO register */
-#define PWM_BASE	(BASE + 0x20C000)	/* adresa od které začíná PWM register*/
-#define CLK_BASE	(BASE + 0x101000)	/* adresa od které začíná CLK register (hodiny)*/
+#define BASE		0x20000000		/* registers common base address */
+#define GPIO_BASE 	(BASE + 0x200000)	/* GPIO registers base address */
+#define PWM_BASE	(BASE + 0x20C000)	/* PWM registers base address */
+#define CLK_BASE	(BASE + 0x101000)	/* CLK register base address */
 
-#define PWM_CTL		*(pwm)			/* CTL (controlní) register, nastavení zdroje a typu pwm*/
-#define PWM_RNG1	*(pwm+4)		/* RNG1 (nastavení děliče) register, počet citlivostních úrovní*/
-#define PWM_DAT1	*(pwm+5)		/* DAT1 (procento střídy) register*/
+#define PWM_CTL		*(pwm)			/* CTL - PWM control register, select clock source and PWM mode */
+#define PWM_RNG1	*(pwm+4)		/* RNG1 - PWM divider register, cycle count and duty resolution */
+#define PWM_DAT1	*(pwm+5)		/* DAT1 - PWM duty value register*/
 
-#define PWM_CLK_CNTL	*(clk+40)		/* CLK_CNTL (nastavení hodin pro PWM) register */
-#define PWM_CLK_DIV	*(clk+41)		/* CLK_DIV (vnitřní dělič) register */
+#define PWM_CLK_CNTL	*(clk+40)		/* CLK_CNTL - control clock for PWM (on/off) */
+#define PWM_CLK_DIV	*(clk+41)		/* CLK_DIV - divisor (bits 11:0 are *quantized* floating part, 31:12 integer */
 
 #define LEFT		1
 #define RIGHT		-1
 
-#define GPIO_PWM	18			/* Pin pro PWM (ALT fn 5) */
+#define GPIO_PWM	18			/* PWM pin corresponding GPIO number (ALT fn 5) */
 #define GPIO_DIR	22
 
 
@@ -152,7 +152,7 @@ static volatile unsigned *gpio, *pwm, *clk;
 /*
 peripheral_registers_map:
 
-Nastaví public ukazatele *gpio, *pwm, *clk na správné místa v paměti
+Maps registers into virtual address space and sets  *gpio, *pwm, *clk poiners
 */
 static int peripheral_registers_map(void) {
     if (mapping_initialized)
