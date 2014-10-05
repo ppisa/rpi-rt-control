@@ -77,7 +77,7 @@ irc_irq_handlerAR:
 	GPIO IRC 1 (= 3) rising edge handler - direction determined from IRC 2 (= 4).
 */
 static irqreturn_t irc_irq_handlerAR(int irq, void *dev){
-	
+
 	if(direction == RIGHT){
 		if(prev_val == 4){
 			position++;
@@ -91,7 +91,7 @@ static irqreturn_t irc_irq_handlerAR(int irq, void *dev){
 			return IRQ_HANDLED;
 		}
 	}
-		
+
 	if(gpio_get_value(IRC2) == HIGH){
 		position++;
 		direction = RIGHT;
@@ -122,7 +122,7 @@ static irqreturn_t irc_irq_handlerAF(int irq, void *dev){
 			return IRQ_HANDLED;
 		}
 	}
-		
+
 	if(gpio_get_value(IRC2) == LOW){
 		position++;
 		direction = RIGHT;
@@ -152,7 +152,7 @@ static irqreturn_t irc_irq_handlerBF(int irq, void *dev){
 			return IRQ_HANDLED;
 		}
 	}
-	
+
 	if(gpio_get_value(IRC1) == HIGH){
 		position++;
 		direction = RIGHT;
@@ -182,7 +182,7 @@ static irqreturn_t irc_irq_handlerBR(int irq, void *dev){
 			return IRQ_HANDLED;
 		}
 	}
-		
+
 	if(gpio_get_value(IRC1) == LOW){
 		position++;
 		direction = RIGHT;
@@ -209,15 +209,15 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 		printk(KERN_DEBUG "this will always return zero.\n");
 		return 0;
 	}
-	
+
 	pos = position;
-	
+
 	ret = copy_to_user(buffer, &pos, sizeof(uint32_t));
 
 	buffer += sizeof(uint32_t);
-	
+
 	bytes_to_copy = length-sizeof(uint32_t);
-	if(ret)	
+	if(ret)
 		return -EFAULT;
 
 	return length-bytes_to_copy;
@@ -233,7 +233,7 @@ int irc_open(struct inode *inode, struct file *file) {
 	if(dev_minor > 0){
 		printk(KERN_ERR "There is no hardware support for the device file with minor nr.: %d\n", dev_minor);
 	}
-	
+
 	atomic_inc(&used_count);
 
 	file->private_data = NULL;
@@ -249,7 +249,7 @@ int irc_relase(struct inode *inode, struct file *file) {
 	if(atomic_dec_and_test(&used_count)){
 		printk(KERN_DEBUG "Last irc user finished\n");
 	}
-	
+
 	return 0;
 } /* irc_relase */
 
@@ -290,20 +290,20 @@ int gpio_irc_setup_inputs(void){
 		printk(KERN_ERR "failed request %s\n", IRC1_name);
 		return (-1);
 	}
-	
+
 	if(gpio_request(IRC2, IRC2_name) != 0){
 		printk(KERN_ERR "failed request %s\n", IRC2_name);
 		gpio_free(IRC1);
 		return (-1);
 	}
-	
+
 	if(gpio_request(IRC3, IRC3_name) != 0){
 		printk(KERN_ERR "failed request %s\n", IRC3_name);
 		gpio_free(IRC1);
 		gpio_free(IRC2);
 		return (-1);
 	}
-	
+
 	if(gpio_request(IRC4, IRC4_name) != 0){
 		printk(KERN_ERR "failed request %s\n", IRC4_name);
 		gpio_free(IRC1);
@@ -311,7 +311,7 @@ int gpio_irc_setup_inputs(void){
 		gpio_free(IRC3);
 		return (-1);
 	}
-	
+
 	/*if(gpio_request(IRQ, IRQ_name) != 0){
 		printk(KERN_ERR "failed request GPIO 23\n");
 		gpio_free(IRC1);
@@ -320,7 +320,7 @@ int gpio_irc_setup_inputs(void){
 		gpio_free(IRC4);
 		return (-1);
 	}*/
-	
+
 	if(gpio_direction_input(IRC1) != 0){
 		printk(KERN_ERR "failed set direction input %s\n", IRC1_name);
 		free_fn();
@@ -332,7 +332,7 @@ int gpio_irc_setup_inputs(void){
 		free_fn();
 		return (-1);
 	}
-	
+
 	if(gpio_direction_input(IRC3) != 0){
 		printk(KERN_ERR "failed set direction input %s\n", IRC3_name);
 		free_fn();
@@ -359,9 +359,9 @@ static int gpio_irc_init(void) {
 	int res;
 	int dev_minor = 0;
 	int pom = 0;
-	
+
 	struct device *this_dev;
-	
+
 	printk(KERN_NOTICE "gpio_irc init started\n");
 	printk(KERN_NOTICE "variant without table (4x IRQ on 4 GPIO) - FAST\n");
 	printk(KERN_NOTICE "for peripheral variant 2\n");
@@ -383,7 +383,7 @@ static int gpio_irc_init(void) {
 		printk(KERN_ERR "problem to create device \"irc%d\" in the class \"irc\"\n", dev_minor);
 		return (-1);
 	}
-	
+
 	pom = gpio_irc_setup_inputs();
 	if(pom == -1){
 		printk(KERN_ERR "Inicializace GPIO se nezdarila");
@@ -396,28 +396,28 @@ static int gpio_irc_init(void) {
 		free_fn();
 		return (-1);
 	}
-	
+
 	irc2_irq_num = gpio_to_irq(IRC2);
 	if(irc2_irq_num < 0){
 		printk(KERN_ERR "failed get IRQ number %s\n", IRC2_name);
 		free_fn();
 		return (-1);
 	}
-	
+
 	irc3_irq_num = gpio_to_irq(IRC3);
 	if(irc3_irq_num < 0){
 		printk(KERN_ERR "failed get IRQ number %s\n", IRC3_name);
 		free_fn();
 		return (-1);
 	}
-	
+
 	irc4_irq_num = gpio_to_irq(IRC4);
 	if(irc4_irq_num < 0){
 		printk(KERN_ERR "failed get IRQ number %s\n", IRC4_name);
 		free_fn();
 		return (-1);
 	}
-	
+
 	if(request_irq((unsigned int)irc1_irq_num, irc_irq_handlerAR, IRQF_TRIGGER_RISING, "irc1_irqAS", NULL) != 0){
 		printk(KERN_ERR "failed request IRQ for %s\n", IRC1_name);
 		free_fn();
@@ -446,7 +446,7 @@ static int gpio_irc_init(void) {
 	}
 	printk(KERN_NOTICE "gpio_irc init done\n");
 	return 0;
-	
+
 } /* gpio_irc_init */
 
 /*
@@ -460,7 +460,7 @@ static void gpio_irc_exit(void) {
 	device_destroy(irc_class, MKDEV(dev_major, dev_minor));
 	class_destroy(irc_class);
 	unregister_chrdev(dev_major,DEVICE_NAME);
-	
+
 	printk(KERN_NOTICE "gpio_irc modul closed\n");
 } /* gpio_irc_exit */
 
