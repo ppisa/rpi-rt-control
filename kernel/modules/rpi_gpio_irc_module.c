@@ -58,10 +58,10 @@ Linux generic GPIO infrastructue.
 
 
 atomic_t used_count;
-volatile uint32_t pozice = 0;
+volatile uint32_t position = 0;
 
-volatile char predesly = 0;
-volatile char smer = 1;
+volatile char prev_val = 0;
+volatile char direction = 1;
 
 int dev_major=0;
 
@@ -78,28 +78,28 @@ irc_irq_handlerAR:
 */
 static irqreturn_t irc_irq_handlerAR(int irq, void *dev){
 	
-	if(smer == RIGHT){
-		if(predesly == 4){
-			pozice++;
-			predesly = 1;
+	if(direction == RIGHT){
+		if(prev_val == 4){
+			position++;
+			prev_val = 1;
 			return IRQ_HANDLED;
 		}
 	}else{
-		if(predesly == 3){
-			pozice--;
-			predesly = 1;
+		if(prev_val == 3){
+			position--;
+			prev_val = 1;
 			return IRQ_HANDLED;
 		}
 	}
 		
 	if(gpio_get_value(IRC2) == HIGH){
-		pozice++;
-		smer = RIGHT;
+		position++;
+		direction = RIGHT;
 	}else{
-		pozice--;
-		smer = LEFT;
+		position--;
+		direction = LEFT;
 	}
-	predesly = 1;
+	prev_val = 1;
         return IRQ_HANDLED;
 } /* irc_irq_handlerAR */
 
@@ -109,28 +109,28 @@ irc_irq_handlerAF:
 */
 static irqreturn_t irc_irq_handlerAF(int irq, void *dev){
 
-	if(smer == RIGHT){
-		if(predesly == 3){
-			pozice++;
-			predesly = 2;
+	if(direction == RIGHT){
+		if(prev_val == 3){
+			position++;
+			prev_val = 2;
 			return IRQ_HANDLED;
 		}
 	}else{
-		if(predesly == 4){
-			pozice--;
-			predesly = 2;
+		if(prev_val == 4){
+			position--;
+			prev_val = 2;
 			return IRQ_HANDLED;
 		}
 	}
 		
 	if(gpio_get_value(IRC2) == LOW){
-		pozice++;
-		smer = RIGHT;
+		position++;
+		direction = RIGHT;
 	}else{
-		pozice--;
-		smer = LEFT;
+		position--;
+		direction = LEFT;
 	}
-	predesly = 2;
+	prev_val = 2;
         return IRQ_HANDLED;
 } /* irc_irq_handlerAF */
 
@@ -139,28 +139,28 @@ irc_irq_handlerBF:
 	GPIO IRC 2 (= 4) falling edge handler - direction determined from IRC 1 (= 3).
 */
 static irqreturn_t irc_irq_handlerBF(int irq, void *dev){
-	if(smer == RIGHT){
-		if(predesly == 1){
-			pozice++;
-			predesly = 3;
+	if(direction == RIGHT){
+		if(prev_val == 1){
+			position++;
+			prev_val = 3;
 			return IRQ_HANDLED;
 		}
 	}else{
-		if(predesly == 2){
-			pozice--;
-			predesly = 3;
+		if(prev_val == 2){
+			position--;
+			prev_val = 3;
 			return IRQ_HANDLED;
 		}
 	}
 	
 	if(gpio_get_value(IRC1) == HIGH){
-		pozice++;
-		smer = RIGHT;
+		position++;
+		direction = RIGHT;
 	}else{
-		pozice--;
-		smer = LEFT;
+		position--;
+		direction = LEFT;
 	}
-	predesly = 3;
+	prev_val = 3;
         return IRQ_HANDLED;
 } /* irc_irq_handlerBF */
 
@@ -169,28 +169,28 @@ irc_irq_handlerBR:
 	GPIO IRC 4 (= 2) rising edge handler - direction determined from IRC 1 (= 3).
 */
 static irqreturn_t irc_irq_handlerBR(int irq, void *dev){
-	if(smer == RIGHT){
-		if(predesly == 2){
-			pozice++;
-			predesly = 4;
+	if(direction == RIGHT){
+		if(prev_val == 2){
+			position++;
+			prev_val = 4;
 			return IRQ_HANDLED;
 		}
 	}else{
-		if(predesly == 1){
-			pozice--;
-			predesly = 4;
+		if(prev_val == 1){
+			position--;
+			prev_val = 4;
 			return IRQ_HANDLED;
 		}
 	}
 		
 	if(gpio_get_value(IRC1) == LOW){
-		pozice++;
-		smer = RIGHT;
+		position++;
+		direction = RIGHT;
 	}else{
-		pozice--;
-		smer = LEFT;
+		position--;
+		direction = LEFT;
 	}
-	predesly = 4;
+	prev_val = 4;
         return IRQ_HANDLED;
 } /* irc_irq_handler */
 
@@ -210,7 +210,7 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 		return 0;
 	}
 	
-	pos = pozice;
+	pos = position;
 	
 	ret = copy_to_user(buffer, &pos, sizeof(uint32_t));
 
