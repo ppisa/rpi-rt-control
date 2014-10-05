@@ -38,7 +38,7 @@ Linux generic GPIO infrastructue.
 #define IRC3	24
 
 #define IRC2	7 /* GPIO 2 -> IRC channel B */
-#define IRC4 	8
+#define IRC4	8
 
 /* #define IRQ	25 input not used for this variant of processing */
 
@@ -54,7 +54,7 @@ Linux generic GPIO infrastructue.
 #define HIGH	1
 #define LOW	0
 
-#define DEVICE_NAME 	"irc"
+#define DEVICE_NAME	"irc"
 
 
 atomic_t used_count;
@@ -63,7 +63,7 @@ volatile uint32_t position = 0;
 volatile char prev_val = 0;
 volatile char direction = 1;
 
-int dev_major=0;
+int dev_major = 0;
 
 int irc1_irq_num = 0;
 int irc2_irq_num = 0;
@@ -76,122 +76,125 @@ static struct class *irc_class;
 irc_irq_handlerAR:
 	GPIO IRC 1 (= 3) rising edge handler - direction determined from IRC 2 (= 4).
 */
-static irqreturn_t irc_irq_handlerAR(int irq, void *dev){
+static irqreturn_t irc_irq_handlerAR(int irq, void *dev)
+{
 
-	if(direction == RIGHT){
-		if(prev_val == 4){
+	if (direction == RIGHT) {
+		if (prev_val == 4) {
 			position++;
 			prev_val = 1;
 			return IRQ_HANDLED;
 		}
-	}else{
-		if(prev_val == 3){
+	} else {
+		if (prev_val == 3) {
 			position--;
 			prev_val = 1;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if(gpio_get_value(IRC2) == HIGH){
+	if (gpio_get_value(IRC2) == HIGH) {
 		position++;
 		direction = RIGHT;
-	}else{
+	} else {
 		position--;
 		direction = LEFT;
 	}
 	prev_val = 1;
-        return IRQ_HANDLED;
+	return IRQ_HANDLED;
 } /* irc_irq_handlerAR */
 
 /*
 irc_irq_handlerAF:
 	GPIO IRC 3 (= 1) faling edge handler - direction determined from IRC 2 (= 4).
 */
-static irqreturn_t irc_irq_handlerAF(int irq, void *dev){
-
-	if(direction == RIGHT){
-		if(prev_val == 3){
+static irqreturn_t irc_irq_handlerAF(int irq, void *dev)
+{
+	if (direction == RIGHT) {
+		if (prev_val == 3) {
 			position++;
 			prev_val = 2;
 			return IRQ_HANDLED;
 		}
-	}else{
-		if(prev_val == 4){
+	} else {
+		if (prev_val == 4) {
 			position--;
 			prev_val = 2;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if(gpio_get_value(IRC2) == LOW){
+	if (gpio_get_value(IRC2) == LOW) {
 		position++;
 		direction = RIGHT;
-	}else{
+	} else {
 		position--;
 		direction = LEFT;
 	}
 	prev_val = 2;
-        return IRQ_HANDLED;
+	return IRQ_HANDLED;
 } /* irc_irq_handlerAF */
 
 /*
 irc_irq_handlerBF:
 	GPIO IRC 2 (= 4) falling edge handler - direction determined from IRC 1 (= 3).
 */
-static irqreturn_t irc_irq_handlerBF(int irq, void *dev){
-	if(direction == RIGHT){
-		if(prev_val == 1){
+static irqreturn_t irc_irq_handlerBF(int irq, void *dev)
+{
+	if (direction == RIGHT) {
+		if (prev_val == 1) {
 			position++;
 			prev_val = 3;
 			return IRQ_HANDLED;
 		}
-	}else{
-		if(prev_val == 2){
+	} else {
+		if (prev_val == 2) {
 			position--;
 			prev_val = 3;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if(gpio_get_value(IRC1) == HIGH){
+	if (gpio_get_value(IRC1) == HIGH) {
 		position++;
 		direction = RIGHT;
-	}else{
+	} else {
 		position--;
 		direction = LEFT;
 	}
 	prev_val = 3;
-        return IRQ_HANDLED;
+	return IRQ_HANDLED;
 } /* irc_irq_handlerBF */
 
 /*
 irc_irq_handlerBR:
 	GPIO IRC 4 (= 2) rising edge handler - direction determined from IRC 1 (= 3).
 */
-static irqreturn_t irc_irq_handlerBR(int irq, void *dev){
-	if(direction == RIGHT){
-		if(prev_val == 2){
+static irqreturn_t irc_irq_handlerBR(int irq, void *dev)
+{
+	if (direction == RIGHT) {
+		if (prev_val == 2) {
 			position++;
 			prev_val = 4;
 			return IRQ_HANDLED;
 		}
-	}else{
-		if(prev_val == 1){
+	} else {
+		if (prev_val == 1) {
 			position--;
 			prev_val = 4;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if(gpio_get_value(IRC1) == LOW){
+	if (gpio_get_value(IRC1) == LOW) {
 		position++;
 		direction = RIGHT;
-	}else{
+	} else {
 		position--;
 		direction = LEFT;
 	}
 	prev_val = 4;
-        return IRQ_HANDLED;
+	return IRQ_HANDLED;
 } /* irc_irq_handler */
 
 /*
@@ -199,13 +202,14 @@ irc_read:
 	file operation processing read systemcall for /dev/irc0 device
 	it returns accumulated position to the calling process buffer
 */
-ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset) {
+ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
+{
 	int bytes_to_copy;
 	int ret;
 	uint32_t pos;
 
 	if (length < sizeof(uint32_t)) {
-		pr_debug("Trying to read less bytes than a irc message, \n");
+		pr_debug("Trying to read less bytes than a irc message,\n");
 		pr_debug("this will always return zero.\n");
 		return 0;
 	}
@@ -217,7 +221,7 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 	buffer += sizeof(uint32_t);
 
 	bytes_to_copy = length-sizeof(uint32_t);
-	if(ret)
+	if (ret)
 		return -EFAULT;
 
 	return length-bytes_to_copy;
@@ -228,10 +232,11 @@ irc_open:
 	file operation called at /dev/irc0 device open
 	it records number of active device users
 */
-int irc_open(struct inode *inode, struct file *file) {
+int irc_open(struct inode *inode, struct file *file)
+{
 	int dev_minor = MINOR(file->f_dentry->d_inode->i_rdev);
-	if(dev_minor > 0){
-	}
+
+	if (dev_minor > 0)
 		pr_err("There is no hardware support for the device file with minor nr.: %d\n", dev_minor);
 
 	atomic_inc(&used_count);
@@ -244,10 +249,9 @@ int irc_open(struct inode *inode, struct file *file) {
 irc_relese:
 	file operation called at /dev/irc0 device close/release time
 */
-int irc_relase(struct inode *inode, struct file *file) {
-
-	if(atomic_dec_and_test(&used_count)){
-	}
+int irc_relase(struct inode *inode, struct file *file)
+{
+	if (atomic_dec_and_test(&used_count))
 		pr_debug("Last irc user finished\n");
 
 	return 0;
@@ -257,22 +261,24 @@ int irc_relase(struct inode *inode, struct file *file) {
 Define file operations for device IRC
 */
 const struct file_operations irc_fops = {
-	.owner=THIS_MODULE,
-	.read=irc_read,
-	.write=NULL,
-/*	.poll=irc_poll,*/
-	.open=irc_open,
-	.release=irc_relase,
+	.owner = THIS_MODULE,
+	.read = irc_read,
+	.write = NULL,
+/*	.poll = irc_poll,*/
+	.open = irc_open,
+	.release = irc_relase,
 };
 
-void free_irq_fn(void){
-		free_irq((unsigned int)irc1_irq_num, NULL);
-		free_irq((unsigned int)irc3_irq_num, NULL);
-		free_irq((unsigned int)irc2_irq_num, NULL);
-		free_irq((unsigned int)irc4_irq_num, NULL);
+void free_irq_fn(void)
+{
+	free_irq((unsigned int)irc1_irq_num, NULL);
+	free_irq((unsigned int)irc3_irq_num, NULL);
+	free_irq((unsigned int)irc2_irq_num, NULL);
+	free_irq((unsigned int)irc4_irq_num, NULL);
 }
 
-void free_fn(void){
+void free_fn(void)
+{
 	gpio_free(IRC1);
 	gpio_free(IRC2);
 	gpio_free(IRC3);
@@ -285,26 +291,27 @@ gpio_irc_setup_inputs:
 	Configure inputs as sources and connect interrupt handlers
 	GPIO 2, 3, 4, 23 and 24 are configured as inputs
 */
-int gpio_irc_setup_inputs(void){
-	if(gpio_request(IRC1, IRC1_name) != 0){
+int gpio_irc_setup_inputs(void)
+{
+	if (gpio_request(IRC1, IRC1_name) != 0) {
 		pr_err("failed request %s\n", IRC1_name);
 		return (-1);
 	}
 
-	if(gpio_request(IRC2, IRC2_name) != 0){
+	if (gpio_request(IRC2, IRC2_name) != 0) {
 		pr_err("failed request %s\n", IRC2_name);
 		gpio_free(IRC1);
 		return (-1);
 	}
 
-	if(gpio_request(IRC3, IRC3_name) != 0){
+	if (gpio_request(IRC3, IRC3_name) != 0) {
 		pr_err("failed request %s\n", IRC3_name);
 		gpio_free(IRC1);
 		gpio_free(IRC2);
 		return (-1);
 	}
 
-	if(gpio_request(IRC4, IRC4_name) != 0){
+	if (gpio_request(IRC4, IRC4_name) != 0) {
 		pr_err("failed request %s\n", IRC4_name);
 		gpio_free(IRC1);
 		gpio_free(IRC2);
@@ -312,7 +319,7 @@ int gpio_irc_setup_inputs(void){
 		return (-1);
 	}
 
-	/*if(gpio_request(IRQ, IRQ_name) != 0){
+	/*if (gpio_request(IRQ, IRQ_name) != 0) {
 		pr_err("failed request GPIO 23\n");
 		gpio_free(IRC1);
 		gpio_free(IRC2);
@@ -321,24 +328,24 @@ int gpio_irc_setup_inputs(void){
 		return (-1);
 	}*/
 
-	if(gpio_direction_input(IRC1) != 0){
+	if (gpio_direction_input(IRC1) != 0) {
 		pr_err("failed set direction input %s\n", IRC1_name);
 		free_fn();
 		return (-1);
 	}
 
-	if(gpio_direction_input(IRC2) != 0){
+	if (gpio_direction_input(IRC2) != 0) {
 		pr_err("failed set direction input %s\n", IRC2_name);
 		free_fn();
 		return (-1);
 	}
 
-	if(gpio_direction_input(IRC3) != 0){
+	if (gpio_direction_input(IRC3) != 0) {
 		pr_err("failed set direction input %s\n", IRC3_name);
 		free_fn();
 		return (-1);
 	}
-	if(gpio_direction_input(IRC4) != 0){
+	if (gpio_direction_input(IRC4) != 0) {
 		pr_err("failed set direction input %s\n", IRC4_name);
 		free_fn();
 		return (-1);
@@ -355,7 +362,8 @@ int gpio_irc_setup_inputs(void){
 gpio_irc_init:
 	inicializacni metoda modulu
 */
-static int gpio_irc_init(void) {
+static int gpio_irc_init(void)
+{
 	int res;
 	int dev_minor = 0;
 	int pom = 0;
@@ -366,77 +374,77 @@ static int gpio_irc_init(void) {
 	pr_notice("variant without table (4x IRQ on 4 GPIO) - FAST\n");
 	pr_notice("for peripheral variant 2\n");
 
-	irc_class=class_create(THIS_MODULE, DEVICE_NAME);
-	res=register_chrdev(dev_major,DEVICE_NAME, &irc_fops);
-	if (res<0) {
-		printk(KERN_ERR "Error registering driver.\n");
+	irc_class = class_create(THIS_MODULE, DEVICE_NAME);
+	res = register_chrdev(dev_major, DEVICE_NAME, &irc_fops);
+	if (res < 0) {
+		pr_err("Error registering driver.\n");
 		class_destroy(irc_class);
 		return -ENODEV;
 		/*goto register_error;*/
 	}
-	if(dev_major == 0){
+	if (dev_major == 0)
 		dev_major = res;
-	}
-	this_dev=device_create(irc_class, NULL, MKDEV(dev_major, dev_minor), NULL,  "irc%d", dev_minor);
 
-	if(IS_ERR(this_dev)){
+	this_dev = device_create(irc_class, NULL, MKDEV(dev_major, dev_minor), NULL,  "irc%d", dev_minor);
+
+	if (IS_ERR(this_dev)) {
 		pr_err("problem to create device \"irc%d\" in the class \"irc\"\n", dev_minor);
 		return (-1);
 	}
 
 	pom = gpio_irc_setup_inputs();
-	if(pom == -1){
+	if (pom == -1) {
 		pr_err("Inicializace GPIO se nezdarila");
 		return (-1);
 	}
 
 	irc1_irq_num = gpio_to_irq(IRC1);
-	if(irc1_irq_num < 0){
+	if (irc1_irq_num < 0) {
 		pr_err("failed get IRQ number %s\n", IRC1_name);
 		free_fn();
 		return (-1);
 	}
 
 	irc2_irq_num = gpio_to_irq(IRC2);
-	if(irc2_irq_num < 0){
+	if (irc2_irq_num < 0) {
 		pr_err("failed get IRQ number %s\n", IRC2_name);
 		free_fn();
 		return (-1);
 	}
 
 	irc3_irq_num = gpio_to_irq(IRC3);
-	if(irc3_irq_num < 0){
+	if (irc3_irq_num < 0) {
 		pr_err("failed get IRQ number %s\n", IRC3_name);
 		free_fn();
 		return (-1);
 	}
 
 	irc4_irq_num = gpio_to_irq(IRC4);
-	if(irc4_irq_num < 0){
+	if (irc4_irq_num < 0) {
 		pr_err("failed get IRQ number %s\n", IRC4_name);
 		free_fn();
 		return (-1);
 	}
 
-	if(request_irq((unsigned int)irc1_irq_num, irc_irq_handlerAR, IRQF_TRIGGER_RISING, "irc1_irqAS", NULL) != 0){
+	if (request_irq((unsigned int)irc1_irq_num, irc_irq_handlerAR, IRQF_TRIGGER_RISING, "irc1_irqAS", NULL) != 0) {
 		pr_err("failed request IRQ for %s\n", IRC1_name);
 		free_fn();
 		return (-1);
 	}
-	if(request_irq((unsigned int)irc3_irq_num, irc_irq_handlerAF, IRQF_TRIGGER_FALLING, "irc3_irqAN", NULL) != 0){
+	if (request_irq((unsigned int)irc3_irq_num, irc_irq_handlerAF, IRQF_TRIGGER_FALLING, "irc3_irqAN", NULL) != 0) {
 		pr_err("failed request IRQ for %s\n", IRC3_name);
 		free_fn();
 		free_irq((unsigned int)irc1_irq_num, NULL);
 		return (-1);
 	}
-	if(request_irq((unsigned int)irc2_irq_num, irc_irq_handlerBF, IRQF_TRIGGER_FALLING, "irc2_irqBS", NULL) != 0){
+	if (request_irq((unsigned int)irc2_irq_num, irc_irq_handlerBF, IRQF_TRIGGER_FALLING, "irc2_irqBS", NULL) != 0) {
 		pr_err("failed request IRQ for %s\n", IRC2_name);
 		free_fn();
 		free_irq((unsigned int)irc1_irq_num, NULL);
 		free_irq((unsigned int)irc3_irq_num, NULL);
 		return (-1);
 	}
-	if(request_irq((unsigned int)irc4_irq_num, irc_irq_handlerBR, IRQF_TRIGGER_RISING, "irc4_irqBN", NULL) != 0){
+	if (request_irq((unsigned int)irc4_irq_num, irc_irq_handlerBR, IRQF_TRIGGER_RISING, "irc4_irqBN", NULL) != 0) {
 		pr_err("failed request IRQ for %s\n", IRC4_name);
 		free_fn();
 		free_irq((unsigned int)irc1_irq_num, NULL);
@@ -453,13 +461,15 @@ static int gpio_irc_init(void) {
 gpio_irc_exist:
 	metoda volaná při odstranení modulu
 */
-static void gpio_irc_exit(void) {
+static void gpio_irc_exit(void)
+{
 	int dev_minor = 0;
+
 	free_irq_fn();
 	free_fn();
 	device_destroy(irc_class, MKDEV(dev_major, dev_minor));
 	class_destroy(irc_class);
-	unregister_chrdev(dev_major,DEVICE_NAME);
+	unregister_chrdev(dev_major, DEVICE_NAME);
 
 	pr_notice("gpio_irc modul closed\n");
 } /* gpio_irc_exit */
