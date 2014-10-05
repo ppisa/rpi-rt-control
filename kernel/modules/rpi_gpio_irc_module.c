@@ -32,7 +32,7 @@ Linux generic GPIO infrastructue.
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/device.h>
 
 #define IRC1_GPIO	23 /* GPIO 3 -> IRC channel A */
@@ -255,7 +255,8 @@ int irc_open(struct inode *inode, struct file *file)
 	struct gpio_irc_state *ircst = &gpio_irc_0;
 
 	if (dev_minor > 0)
-		pr_err("There is no hardware support for the device file with minor nr.: %d\n", dev_minor);
+		pr_err("There is no hardware support for the device file with minor nr.: %d\n",
+			dev_minor);
 
 	atomic_inc(&ircst->used_count);
 
@@ -292,6 +293,7 @@ const struct file_operations irc_fops = {
 void gpio_irc_free_irq_fn(struct gpio_irc_state *ircst)
 {
 	int i;
+
 	for (i = 0; i < 4; i++)
 		free_irq(ircst->irc_irq_num[i], ircst);
 }
@@ -299,6 +301,7 @@ void gpio_irc_free_irq_fn(struct gpio_irc_state *ircst)
 void gpio_irc_free_fn(struct gpio_irc_state *ircst)
 {
 	int i;
+
 	for (i = 0; i < 4; i++)
 		gpio_free(ircst->irc_gpio[i]);
 }
@@ -330,9 +333,10 @@ int gpio_irc_setup_inputs(struct gpio_irc_state *ircst)
 	return 0;
 
 error_gpio_request:
-	while (i > 0) {
+
+	while (i > 0)
 		gpio_free(ircst->irc_gpio[--i]);
-	}
+
 	return -1;
 }
 
@@ -347,7 +351,6 @@ static int gpio_irc_init(void)
 	int dev_minor = 0;
 	int pom = 0;
 	struct gpio_irc_state *ircst = &gpio_irc_0;
-
 	struct device *this_dev;
 
 	pr_notice("gpio_irc init started\n");
@@ -365,10 +368,12 @@ static int gpio_irc_init(void)
 	if (dev_major == 0)
 		dev_major = res;
 
-	this_dev = device_create(irc_class, NULL, MKDEV(dev_major, dev_minor), NULL,  "irc%d", dev_minor);
+	this_dev = device_create(irc_class, NULL, MKDEV(dev_major, dev_minor),
+				NULL,  "irc%d", dev_minor);
 
 	if (IS_ERR(this_dev)) {
-		pr_err("problem to create device \"irc%d\" in the class \"irc\"\n", dev_minor);
+		pr_err("problem to create device \"irc%d\" in the class \"irc\"\n",
+			dev_minor);
 		return (-1);
 	}
 
@@ -380,6 +385,7 @@ static int gpio_irc_init(void)
 
 	for (i = 0; i < 4; i++) {
 		int irq_num;
+
 		irq_num = gpio_to_irq(ircst->irc_gpio[i]);
 		if (irq_num < 0) {
 			pr_err("failed get IRQ number %s\n", ircst->irc_gpio_name[i]);
@@ -421,7 +427,6 @@ static int gpio_irc_init(void)
 	}
 	pr_notice("gpio_irc init done\n");
 	return 0;
-
 }
 
 /*
