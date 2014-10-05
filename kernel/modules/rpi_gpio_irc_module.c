@@ -5,6 +5,7 @@
  *  quadrature encoded signals to position value
  *
  *  Copyright (C) 2014 Radek Meciar
+ *  Copyright (C) 2014 Pavel Pisa
  *
  *  More information in bachelor thesis
  *    Motor control with Raspberry Pi board and Linux
@@ -34,18 +35,18 @@ Linux generic GPIO infrastructue.
 #include <asm/uaccess.h>
 #include <linux/device.h>
 
-#define IRC1	23 /* GPIO 3 -> IRC channel A */
-#define IRC3	24
+#define IRC1_GPIO	23 /* GPIO 3 -> IRC channel A */
+#define IRC3_GPIO	24
 
-#define IRC2	7 /* GPIO 2 -> IRC channel B */
-#define IRC4	8
+#define IRC2_GPIO	7 /* GPIO 2 -> IRC channel B */
+#define IRC4_GPIO	8
 
-/* #define IRQ	25 input not used for this variant of processing */
+/* #define IRQ_GPIO	25 input not used for this variant of processing */
 
-#define IRC1_name	"GPIO23_irc1_chA"
-#define IRC2_name	"GPIO7_irc2_chB"
-#define IRC3_name	"GPIO24_irc3_chA"
-#define IRC4_name	"GPI08_irc4_chB"
+#define IRC1_NAME	"GPIO23_irc1_chA"
+#define IRC2_NAME	"GPIO7_irc2_chB"
+#define IRC3_NAME	"GPIO24_irc3_chA"
+#define IRC4_NAME	"GPI08_irc4_chB"
 /* #define IRQ_name	"GPIO23_irq" not used */
 
 #define LEFT	-1
@@ -56,19 +57,27 @@ Linux generic GPIO infrastructue.
 
 #define DEVICE_NAME	"irc"
 
+struct gpio_irc_state {
+	atomic_t used_count;
+	volatile uint32_t position;
 
-atomic_t used_count;
-volatile uint32_t position = 0;
+	volatile char prev_val;
+	volatile char direction;
 
-volatile char prev_val = 0;
-volatile char direction = 1;
+	int irc_gpio[4];
 
-int dev_major = 0;
+	const char *irc_gpio_name[4];
 
-int irc1_irq_num = 0;
-int irc2_irq_num = 0;
-int irc3_irq_num = 0;
-int irc4_irq_num = 0;
+	unsigned int irc_irq_num[4];
+};
+
+struct gpio_irc_state gpio_irc_0 = {
+	.irc_gpio =      {IRC1_GPIO, IRC2_GPIO, IRC3_GPIO, IRC4_GPIO},
+	.irc_gpio_name = {IRC1_NAME, IRC2_NAME, IRC3_NAME, IRC4_NAME},
+	.direction = 1,
+};
+
+int dev_major;
 
 static struct class *irc_class;
 
@@ -78,28 +87,30 @@ static struct class *irc_class;
  */
 static irqreturn_t irc_irq_handlerAR(int irq, void *dev)
 {
-	if (direction == RIGHT) {
-		if (prev_val == 4) {
-			position++;
-			prev_val = 1;
+	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
+
+	if (ircst->direction == RIGHT) {
+		if (ircst->prev_val == 4) {
+			ircst->position++;
+			ircst->prev_val = 1;
 			return IRQ_HANDLED;
 		}
 	} else {
-		if (prev_val == 3) {
-			position--;
-			prev_val = 1;
+		if (ircst->prev_val == 3) {
+			ircst->position--;
+			ircst->prev_val = 1;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if (gpio_get_value(IRC2) == HIGH) {
-		position++;
-		direction = RIGHT;
+	if (gpio_get_value(ircst->irc_gpio[1]) == HIGH) {
+		ircst->position++;
+		ircst->direction = RIGHT;
 	} else {
-		position--;
-		direction = LEFT;
+		ircst->position--;
+		ircst->direction = LEFT;
 	}
-	prev_val = 1;
+	ircst->prev_val = 1;
 	return IRQ_HANDLED;
 }
 
@@ -109,28 +120,30 @@ static irqreturn_t irc_irq_handlerAR(int irq, void *dev)
  */
 static irqreturn_t irc_irq_handlerAF(int irq, void *dev)
 {
-	if (direction == RIGHT) {
-		if (prev_val == 3) {
-			position++;
-			prev_val = 2;
+	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
+
+	if (ircst->direction == RIGHT) {
+		if (ircst->prev_val == 3) {
+			ircst->position++;
+			ircst->prev_val = 2;
 			return IRQ_HANDLED;
 		}
 	} else {
-		if (prev_val == 4) {
-			position--;
-			prev_val = 2;
+		if (ircst->prev_val == 4) {
+			ircst->position--;
+			ircst->prev_val = 2;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if (gpio_get_value(IRC2) == LOW) {
-		position++;
-		direction = RIGHT;
+	if (gpio_get_value(ircst->irc_gpio[1]) == LOW) {
+		ircst->position++;
+		ircst->direction = RIGHT;
 	} else {
-		position--;
-		direction = LEFT;
+		ircst->position--;
+		ircst->direction = LEFT;
 	}
-	prev_val = 2;
+	ircst->prev_val = 2;
 	return IRQ_HANDLED;
 }
 
@@ -140,28 +153,30 @@ static irqreturn_t irc_irq_handlerAF(int irq, void *dev)
  */
 static irqreturn_t irc_irq_handlerBF(int irq, void *dev)
 {
-	if (direction == RIGHT) {
-		if (prev_val == 1) {
-			position++;
-			prev_val = 3;
+	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
+
+	if (ircst->direction == RIGHT) {
+		if (ircst->prev_val == 1) {
+			ircst->position++;
+			ircst->prev_val = 3;
 			return IRQ_HANDLED;
 		}
 	} else {
-		if (prev_val == 2) {
-			position--;
-			prev_val = 3;
+		if (ircst->prev_val == 2) {
+			ircst->position--;
+			ircst->prev_val = 3;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if (gpio_get_value(IRC1) == HIGH) {
-		position++;
-		direction = RIGHT;
+	if (gpio_get_value(ircst->irc_gpio[0]) == HIGH) {
+		ircst->position++;
+		ircst->direction = RIGHT;
 	} else {
-		position--;
-		direction = LEFT;
+		ircst->position--;
+		ircst->direction = LEFT;
 	}
-	prev_val = 3;
+	ircst->prev_val = 3;
 	return IRQ_HANDLED;
 }
 
@@ -171,28 +186,30 @@ static irqreturn_t irc_irq_handlerBF(int irq, void *dev)
  */
 static irqreturn_t irc_irq_handlerBR(int irq, void *dev)
 {
-	if (direction == RIGHT) {
-		if (prev_val == 2) {
-			position++;
-			prev_val = 4;
+	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
+
+	if (ircst->direction == RIGHT) {
+		if (ircst->prev_val == 2) {
+			ircst->position++;
+			ircst->prev_val = 4;
 			return IRQ_HANDLED;
 		}
 	} else {
-		if (prev_val == 1) {
-			position--;
-			prev_val = 4;
+		if (ircst->prev_val == 1) {
+			ircst->position--;
+			ircst->prev_val = 4;
 			return IRQ_HANDLED;
 		}
 	}
 
-	if (gpio_get_value(IRC1) == LOW) {
-		position++;
-		direction = RIGHT;
+	if (gpio_get_value(ircst->irc_gpio[0]) == LOW) {
+		ircst->position++;
+		ircst->direction = RIGHT;
 	} else {
-		position--;
-		direction = LEFT;
+		ircst->position--;
+		ircst->direction = LEFT;
 	}
-	prev_val = 4;
+	ircst->prev_val = 4;
 	return IRQ_HANDLED;
 }
 
@@ -203,6 +220,7 @@ static irqreturn_t irc_irq_handlerBR(int irq, void *dev)
  */
 ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 {
+	struct gpio_irc_state *ircst = (struct gpio_irc_state *)file->private_data;
 	int bytes_to_copy;
 	int ret;
 	uint32_t pos;
@@ -213,7 +231,7 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 		return 0;
 	}
 
-	pos = position;
+	pos = ircst->position;
 
 	ret = copy_to_user(buffer, &pos, sizeof(uint32_t));
 
@@ -223,7 +241,7 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 	if (ret)
 		return -EFAULT;
 
-	return length-bytes_to_copy;
+	return length - bytes_to_copy;
 }
 
 /*
@@ -234,13 +252,14 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 int irc_open(struct inode *inode, struct file *file)
 {
 	int dev_minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	struct gpio_irc_state *ircst = &gpio_irc_0;
 
 	if (dev_minor > 0)
 		pr_err("There is no hardware support for the device file with minor nr.: %d\n", dev_minor);
 
-	atomic_inc(&used_count);
+	atomic_inc(&ircst->used_count);
 
-	file->private_data = NULL;
+	file->private_data = ircst;
 	return 0;
 }
 
@@ -250,7 +269,9 @@ int irc_open(struct inode *inode, struct file *file)
  */
 int irc_relase(struct inode *inode, struct file *file)
 {
-	if (atomic_dec_and_test(&used_count))
+	struct gpio_irc_state *ircst = (struct gpio_irc_state *)file->private_data;
+
+	if (atomic_dec_and_test(&ircst->used_count))
 		pr_debug("Last irc user finished\n");
 
 	return 0;
@@ -268,21 +289,18 @@ const struct file_operations irc_fops = {
 	.release = irc_relase,
 };
 
-void free_irq_fn(void)
+void gpio_irc_free_irq_fn(struct gpio_irc_state *ircst)
 {
-	free_irq((unsigned int)irc1_irq_num, NULL);
-	free_irq((unsigned int)irc3_irq_num, NULL);
-	free_irq((unsigned int)irc2_irq_num, NULL);
-	free_irq((unsigned int)irc4_irq_num, NULL);
+	int i;
+	for (i = 0; i < 4; i++)
+		free_irq(ircst->irc_irq_num[i], ircst);
 }
 
-void free_fn(void)
+void gpio_irc_free_fn(struct gpio_irc_state *ircst)
 {
-	gpio_free(IRC1);
-	gpio_free(IRC2);
-	gpio_free(IRC3);
-	gpio_free(IRC4);
-	/*gpio_free(IRQ); */ /* Not used */
+	int i;
+	for (i = 0; i < 4; i++)
+		gpio_free(ircst->irc_gpio[i]);
 }
 
 /*
@@ -290,71 +308,32 @@ void free_fn(void)
  *	Configure inputs as sources and connect interrupt handlers
  *	GPIO 2, 3, 4, 23 and 24 are configured as inputs
  */
-int gpio_irc_setup_inputs(void)
+int gpio_irc_setup_inputs(struct gpio_irc_state *ircst)
 {
-	if (gpio_request(IRC1, IRC1_name) != 0) {
-		pr_err("failed request %s\n", IRC1_name);
-		return (-1);
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		if (gpio_request(ircst->irc_gpio[i], ircst->irc_gpio_name[i]) != 0) {
+			pr_err("failed request %s\n", ircst->irc_gpio_name[i]);
+			goto error_gpio_request;
+		}
 	}
 
-	if (gpio_request(IRC2, IRC2_name) != 0) {
-		pr_err("failed request %s\n", IRC2_name);
-		gpio_free(IRC1);
-		return (-1);
+	for (i = 0; i < 4; i++) {
+		if (gpio_direction_input(ircst->irc_gpio[i]) != 0) {
+			pr_err("failed set direction input %s\n", ircst->irc_gpio_name[i]);
+			gpio_irc_free_fn(ircst);
+			return (-1);
+		}
 	}
 
-	if (gpio_request(IRC3, IRC3_name) != 0) {
-		pr_err("failed request %s\n", IRC3_name);
-		gpio_free(IRC1);
-		gpio_free(IRC2);
-		return (-1);
-	}
-
-	if (gpio_request(IRC4, IRC4_name) != 0) {
-		pr_err("failed request %s\n", IRC4_name);
-		gpio_free(IRC1);
-		gpio_free(IRC2);
-		gpio_free(IRC3);
-		return (-1);
-	}
-
-	/*if (gpio_request(IRQ, IRQ_name) != 0) {
-		pr_err("failed request GPIO 23\n");
-		gpio_free(IRC1);
-		gpio_free(IRC2);
-		gpio_free(IRC3);
-		gpio_free(IRC4);
-		return (-1);
-	}*/
-
-	if (gpio_direction_input(IRC1) != 0) {
-		pr_err("failed set direction input %s\n", IRC1_name);
-		free_fn();
-		return (-1);
-	}
-
-	if (gpio_direction_input(IRC2) != 0) {
-		pr_err("failed set direction input %s\n", IRC2_name);
-		free_fn();
-		return (-1);
-	}
-
-	if (gpio_direction_input(IRC3) != 0) {
-		pr_err("failed set direction input %s\n", IRC3_name);
-		free_fn();
-		return (-1);
-	}
-	if (gpio_direction_input(IRC4) != 0) {
-		pr_err("failed set direction input %s\n", IRC4_name);
-		free_fn();
-		return (-1);
-	}
-	/*if(gpio_direction_input(IRQ) != 0){
-		pr_err("failed set direction input GPIO 23\n");
-		free_fn();
-		return (-1);
-	}*/
 	return 0;
+
+error_gpio_request:
+	while (i > 0) {
+		gpio_free(ircst->irc_gpio[--i]);
+	}
+	return -1;
 }
 
 /*
@@ -363,9 +342,11 @@ int gpio_irc_setup_inputs(void)
  */
 static int gpio_irc_init(void)
 {
+	int i;
 	int res;
 	int dev_minor = 0;
 	int pom = 0;
+	struct gpio_irc_state *ircst = &gpio_irc_0;
 
 	struct device *this_dev;
 
@@ -391,64 +372,51 @@ static int gpio_irc_init(void)
 		return (-1);
 	}
 
-	pom = gpio_irc_setup_inputs();
+	pom = gpio_irc_setup_inputs(ircst);
 	if (pom == -1) {
 		pr_err("Inicializace GPIO se nezdarila");
 		return (-1);
 	}
 
-	irc1_irq_num = gpio_to_irq(IRC1);
-	if (irc1_irq_num < 0) {
-		pr_err("failed get IRQ number %s\n", IRC1_name);
-		free_fn();
-		return (-1);
+	for (i = 0; i < 4; i++) {
+		int irq_num;
+		irq_num = gpio_to_irq(ircst->irc_gpio[i]);
+		if (irq_num < 0) {
+			pr_err("failed get IRQ number %s\n", ircst->irc_gpio_name[i]);
+			gpio_irc_free_fn(ircst);
+			return (-1);
+		}
+		ircst->irc_irq_num[i] = (unsigned int)irq_num;
 	}
 
-	irc2_irq_num = gpio_to_irq(IRC2);
-	if (irc2_irq_num < 0) {
-		pr_err("failed get IRQ number %s\n", IRC2_name);
-		free_fn();
+	if (request_irq(ircst->irc_irq_num[0], irc_irq_handlerAR,
+			IRQF_TRIGGER_RISING, "irc1_irqAS", ircst) != 0) {
+		pr_err("failed request IRQ for %s\n", ircst->irc_gpio_name[0]);
+		gpio_irc_free_fn(ircst);
 		return (-1);
 	}
-
-	irc3_irq_num = gpio_to_irq(IRC3);
-	if (irc3_irq_num < 0) {
-		pr_err("failed get IRQ number %s\n", IRC3_name);
-		free_fn();
+	if (request_irq(ircst->irc_irq_num[2], irc_irq_handlerAF,
+			IRQF_TRIGGER_FALLING, "irc3_irqAN", ircst) != 0) {
+		pr_err("failed request IRQ for %s\n", ircst->irc_gpio_name[2]);
+		free_irq(ircst->irc_irq_num[0], ircst);
+		gpio_irc_free_fn(ircst);
 		return (-1);
 	}
-
-	irc4_irq_num = gpio_to_irq(IRC4);
-	if (irc4_irq_num < 0) {
-		pr_err("failed get IRQ number %s\n", IRC4_name);
-		free_fn();
+	if (request_irq(ircst->irc_irq_num[1], irc_irq_handlerBF,
+			IRQF_TRIGGER_FALLING, "irc2_irqBS", ircst) != 0) {
+		pr_err("failed request IRQ for %s\n", ircst->irc_gpio_name[1]);
+		free_irq(ircst->irc_irq_num[0], ircst);
+		free_irq(ircst->irc_irq_num[2], ircst);
+		gpio_irc_free_fn(ircst);
 		return (-1);
 	}
-
-	if (request_irq((unsigned int)irc1_irq_num, irc_irq_handlerAR, IRQF_TRIGGER_RISING, "irc1_irqAS", NULL) != 0) {
-		pr_err("failed request IRQ for %s\n", IRC1_name);
-		free_fn();
-		return (-1);
-	}
-	if (request_irq((unsigned int)irc3_irq_num, irc_irq_handlerAF, IRQF_TRIGGER_FALLING, "irc3_irqAN", NULL) != 0) {
-		pr_err("failed request IRQ for %s\n", IRC3_name);
-		free_fn();
-		free_irq((unsigned int)irc1_irq_num, NULL);
-		return (-1);
-	}
-	if (request_irq((unsigned int)irc2_irq_num, irc_irq_handlerBF, IRQF_TRIGGER_FALLING, "irc2_irqBS", NULL) != 0) {
-		pr_err("failed request IRQ for %s\n", IRC2_name);
-		free_fn();
-		free_irq((unsigned int)irc1_irq_num, NULL);
-		free_irq((unsigned int)irc3_irq_num, NULL);
-		return (-1);
-	}
-	if (request_irq((unsigned int)irc4_irq_num, irc_irq_handlerBR, IRQF_TRIGGER_RISING, "irc4_irqBN", NULL) != 0) {
-		pr_err("failed request IRQ for %s\n", IRC4_name);
-		free_fn();
-		free_irq((unsigned int)irc1_irq_num, NULL);
-		free_irq((unsigned int)irc3_irq_num, NULL);
-		free_irq((unsigned int)irc2_irq_num, NULL);
+	if (request_irq(ircst->irc_irq_num[3], irc_irq_handlerBR,
+			IRQF_TRIGGER_RISING, "irc4_irqBN", ircst) != 0) {
+		pr_err("failed request IRQ for %s\n", ircst->irc_gpio_name[3]);
+		free_irq(ircst->irc_irq_num[0], ircst);
+		free_irq(ircst->irc_irq_num[2], ircst);
+		free_irq(ircst->irc_irq_num[1], ircst);
+		gpio_irc_free_fn(ircst);
 		return (-1);
 	}
 	pr_notice("gpio_irc init done\n");
@@ -462,10 +430,11 @@ static int gpio_irc_init(void)
  */
 static void gpio_irc_exit(void)
 {
+	struct gpio_irc_state *ircst = &gpio_irc_0;
 	int dev_minor = 0;
 
-	free_irq_fn();
-	free_fn();
+	gpio_irc_free_irq_fn(ircst);
+	gpio_irc_free_fn(ircst);
 	device_destroy(irc_class, MKDEV(dev_major, dev_minor));
 	class_destroy(irc_class);
 	unregister_chrdev(dev_major, DEVICE_NAME);
