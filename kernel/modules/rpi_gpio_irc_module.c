@@ -73,12 +73,11 @@ int irc4_irq_num = 0;
 static struct class *irc_class;
 
 /*
-irc_irq_handlerAR:
-	GPIO IRC 1 (= 3) rising edge handler - direction determined from IRC 2 (= 4).
-*/
+ * irc_irq_handlerAR:
+ *	GPIO IRC 1 (= 3) rising edge handler - direction determined from IRC 2 (= 4).
+ */
 static irqreturn_t irc_irq_handlerAR(int irq, void *dev)
 {
-
 	if (direction == RIGHT) {
 		if (prev_val == 4) {
 			position++;
@@ -102,12 +101,12 @@ static irqreturn_t irc_irq_handlerAR(int irq, void *dev)
 	}
 	prev_val = 1;
 	return IRQ_HANDLED;
-} /* irc_irq_handlerAR */
+}
 
 /*
-irc_irq_handlerAF:
-	GPIO IRC 3 (= 1) faling edge handler - direction determined from IRC 2 (= 4).
-*/
+ * irc_irq_handlerAF:
+ *	GPIO IRC 3 (= 1) faling edge handler - direction determined from IRC 2 (= 4).
+ */
 static irqreturn_t irc_irq_handlerAF(int irq, void *dev)
 {
 	if (direction == RIGHT) {
@@ -133,12 +132,12 @@ static irqreturn_t irc_irq_handlerAF(int irq, void *dev)
 	}
 	prev_val = 2;
 	return IRQ_HANDLED;
-} /* irc_irq_handlerAF */
+}
 
 /*
-irc_irq_handlerBF:
-	GPIO IRC 2 (= 4) falling edge handler - direction determined from IRC 1 (= 3).
-*/
+ * irc_irq_handlerBF:
+ *	GPIO IRC 2 (= 4) falling edge handler - direction determined from IRC 1 (= 3).
+ */
 static irqreturn_t irc_irq_handlerBF(int irq, void *dev)
 {
 	if (direction == RIGHT) {
@@ -164,12 +163,12 @@ static irqreturn_t irc_irq_handlerBF(int irq, void *dev)
 	}
 	prev_val = 3;
 	return IRQ_HANDLED;
-} /* irc_irq_handlerBF */
+}
 
 /*
-irc_irq_handlerBR:
-	GPIO IRC 4 (= 2) rising edge handler - direction determined from IRC 1 (= 3).
-*/
+ * irc_irq_handlerBR:
+ *	GPIO IRC 4 (= 2) rising edge handler - direction determined from IRC 1 (= 3).
+ */
 static irqreturn_t irc_irq_handlerBR(int irq, void *dev)
 {
 	if (direction == RIGHT) {
@@ -195,13 +194,13 @@ static irqreturn_t irc_irq_handlerBR(int irq, void *dev)
 	}
 	prev_val = 4;
 	return IRQ_HANDLED;
-} /* irc_irq_handler */
+}
 
 /*
-irc_read:
-	file operation processing read systemcall for /dev/irc0 device
-	it returns accumulated position to the calling process buffer
-*/
+ * irc_read:
+ *	file operation processing read systemcall for /dev/irc0 device
+ *	it returns accumulated position to the calling process buffer
+ */
 ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 {
 	int bytes_to_copy;
@@ -225,13 +224,13 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
 		return -EFAULT;
 
 	return length-bytes_to_copy;
-} /* irc_read */
+}
 
 /*
-irc_open:
-	file operation called at /dev/irc0 device open
-	it records number of active device users
-*/
+ * irc_open:
+ *	file operation called at /dev/irc0 device open
+ *	it records number of active device users
+ */
 int irc_open(struct inode *inode, struct file *file)
 {
 	int dev_minor = MINOR(file->f_dentry->d_inode->i_rdev);
@@ -243,23 +242,23 @@ int irc_open(struct inode *inode, struct file *file)
 
 	file->private_data = NULL;
 	return 0;
-} /* irc_open */
+}
 
 /*
-irc_relese:
-	file operation called at /dev/irc0 device close/release time
-*/
+ *irc_relese:
+ *	file operation called at /dev/irc0 device close/release time
+ */
 int irc_relase(struct inode *inode, struct file *file)
 {
 	if (atomic_dec_and_test(&used_count))
 		pr_debug("Last irc user finished\n");
 
 	return 0;
-} /* irc_relase */
+}
 
 /*
-Define file operations for device IRC
-*/
+ *Define file operations for device IRC
+ */
 const struct file_operations irc_fops = {
 	.owner = THIS_MODULE,
 	.read = irc_read,
@@ -287,10 +286,10 @@ void free_fn(void)
 }
 
 /*
-gpio_irc_setup_inputs:
-	Configure inputs as sources and connect interrupt handlers
-	GPIO 2, 3, 4, 23 and 24 are configured as inputs
-*/
+ * gpio_irc_setup_inputs:
+ *	Configure inputs as sources and connect interrupt handlers
+ *	GPIO 2, 3, 4, 23 and 24 are configured as inputs
+ */
 int gpio_irc_setup_inputs(void)
 {
 	if (gpio_request(IRC1, IRC1_name) != 0) {
@@ -359,9 +358,9 @@ int gpio_irc_setup_inputs(void)
 }
 
 /*
-gpio_irc_init:
-	inicializacni metoda modulu
-*/
+ * gpio_irc_init:
+ *	inicializacni metoda modulu
+ */
 static int gpio_irc_init(void)
 {
 	int res;
@@ -455,12 +454,12 @@ static int gpio_irc_init(void)
 	pr_notice("gpio_irc init done\n");
 	return 0;
 
-} /* gpio_irc_init */
+}
 
 /*
-gpio_irc_exist:
-	metoda volaná při odstranení modulu
-*/
+ * gpio_irc_exist:
+ *	metoda volaná při odstranení modulu
+ */
 static void gpio_irc_exit(void)
 {
 	int dev_minor = 0;
@@ -472,7 +471,7 @@ static void gpio_irc_exit(void)
 	unregister_chrdev(dev_major, DEVICE_NAME);
 
 	pr_notice("gpio_irc modul closed\n");
-} /* gpio_irc_exit */
+}
 
 module_init(gpio_irc_init);
 module_exit(gpio_irc_exit);
