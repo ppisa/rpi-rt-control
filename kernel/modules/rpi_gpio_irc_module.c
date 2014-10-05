@@ -256,7 +256,7 @@ int irc_relase(struct inode *inode, struct file *file) {
 /*
 Define file operations for device IRC
 */
-struct file_operations irc_fops={
+const struct file_operations irc_fops = {
 	.owner=THIS_MODULE,
 	.read=irc_read,
 	.write=NULL,
