@@ -99,7 +99,7 @@ enum {PWM_MODE_ZERO = 0, PWM_MODE_PLUS_PWM = 1,
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h> 
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 /*
@@ -202,7 +202,7 @@ Setup PWM frequency to 25kHz
 duty selectable in range 0-4000 (0-100%)
 initial PWM_MODE 0%
 */
-void pwm_output_init(void){	
+void pwm_output_init(void){
     INP_GPIO(GPIO_PWM);
     OUT_GPIO(GPIO_PWM);
     INP_GPIO(GPIO_PWM);
@@ -221,10 +221,10 @@ void pwm_output_init(void){
     while(!(PWM_CLK_CNTL&0x80));
     /* wait for BUSY to signal 1 */
     PWM_RNG1 = 4000;
-    /* external counter limit - duty levels */ 
+    /* external counter limit - duty levels */
     PWM_DAT1 = 0;
     /* initial duty PWM_MODE 0 */
-    PWM_CTL = 0x81; 
+    PWM_CTL = 0x81;
     /* enable MSEN=1 & ENA=1 */
 } /* inicializace PWM */
 
@@ -233,9 +233,9 @@ PWM direction bit control
 */
 void pwm_output_direction_set(int action){
     if(action >=0){
-        GPIO_SET = 1<<GPIO_DIR;
+        GPIO_CLR = 1<<GPIO_DIR;
     }else{
-        GPIO_CLR = 1<<GPIO_DIR;		
+        GPIO_SET = 1<<GPIO_DIR;
     }
 } /* pwm_output_direction_set */
 
