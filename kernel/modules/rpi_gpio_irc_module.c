@@ -49,11 +49,10 @@ Linux generic GPIO infrastructue.
 #define IRC4_NAME	"GPI08_irc4_chB"
 /* #define IRQ_name	"GPIO23_irq" not used */
 
-#define LEFT	-1
-#define RIGHT	1
+#define IRC_DIRECTION_DOWN	-1
+#define IRC_DIRECTION_UP	1
 
-#define HIGH	1
-#define LOW	0
+#define IRC_INPUT_LOW		0
 
 #define DEVICE_NAME	"irc"
 
@@ -61,7 +60,7 @@ struct gpio_irc_state {
 	atomic_t used_count;
 	volatile uint32_t position;
 
-	volatile char prev_val;
+	volatile char prev_phase;
 	volatile char direction;
 
 	int irc_gpio[4];
@@ -74,7 +73,6 @@ struct gpio_irc_state {
 struct gpio_irc_state gpio_irc_0 = {
 	.irc_gpio =      {IRC1_GPIO, IRC2_GPIO, IRC3_GPIO, IRC4_GPIO},
 	.irc_gpio_name = {IRC1_NAME, IRC2_NAME, IRC3_NAME, IRC4_NAME},
-	.direction = 1,
 };
 
 int dev_major;
@@ -89,28 +87,28 @@ static irqreturn_t irc_irq_handlerAR(int irq, void *dev)
 {
 	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
 
-	if (ircst->direction == RIGHT) {
-		if (ircst->prev_val == 4) {
-			ircst->position++;
-			ircst->prev_val = 1;
-			return IRQ_HANDLED;
-		}
-	} else {
-		if (ircst->prev_val == 3) {
-			ircst->position--;
-			ircst->prev_val = 1;
-			return IRQ_HANDLED;
-		}
+	if (ircst->prev_phase == 0) {
+		ircst->position++;
+		ircst->prev_phase = 1;
+		ircst->direction = IRC_DIRECTION_UP;
+		return IRQ_HANDLED;
+	}
+	if (ircst->prev_phase == 3) {
+		ircst->position--;
+		ircst->prev_phase = 2;
+		ircst->direction = IRC_DIRECTION_DOWN;
+		return IRQ_HANDLED;
 	}
 
-	if (gpio_get_value(ircst->irc_gpio[1]) == HIGH) {
+	if (gpio_get_value(ircst->irc_gpio[1]) == IRC_INPUT_LOW) {
 		ircst->position++;
-		ircst->direction = RIGHT;
+		ircst->prev_phase = 1;
+		ircst->direction = IRC_DIRECTION_UP;
 	} else {
 		ircst->position--;
-		ircst->direction = LEFT;
+		ircst->prev_phase = 2;
+		ircst->direction = IRC_DIRECTION_DOWN;
 	}
-	ircst->prev_val = 1;
 	return IRQ_HANDLED;
 }
 
@@ -122,28 +120,28 @@ static irqreturn_t irc_irq_handlerAF(int irq, void *dev)
 {
 	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
 
-	if (ircst->direction == RIGHT) {
-		if (ircst->prev_val == 3) {
-			ircst->position++;
-			ircst->prev_val = 2;
-			return IRQ_HANDLED;
-		}
-	} else {
-		if (ircst->prev_val == 4) {
-			ircst->position--;
-			ircst->prev_val = 2;
-			return IRQ_HANDLED;
-		}
+	if (ircst->prev_phase == 2) {
+		ircst->position++;
+		ircst->prev_phase = 3;
+		ircst->direction = IRC_DIRECTION_UP;
+		return IRQ_HANDLED;
+	}
+	if (ircst->prev_phase == 1) {
+		ircst->position--;
+		ircst->prev_phase = 0;
+		ircst->direction = IRC_DIRECTION_DOWN;
+		return IRQ_HANDLED;
 	}
 
-	if (gpio_get_value(ircst->irc_gpio[1]) == LOW) {
+	if (gpio_get_value(ircst->irc_gpio[1]) != IRC_INPUT_LOW) {
 		ircst->position++;
-		ircst->direction = RIGHT;
+		ircst->prev_phase = 3;
+		ircst->direction = IRC_DIRECTION_UP;
 	} else {
 		ircst->position--;
-		ircst->direction = LEFT;
+		ircst->prev_phase = 0;
+		ircst->direction = IRC_DIRECTION_DOWN;
 	}
-	ircst->prev_val = 2;
 	return IRQ_HANDLED;
 }
 
@@ -155,28 +153,28 @@ static irqreturn_t irc_irq_handlerBF(int irq, void *dev)
 {
 	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
 
-	if (ircst->direction == RIGHT) {
-		if (ircst->prev_val == 1) {
-			ircst->position++;
-			ircst->prev_val = 3;
-			return IRQ_HANDLED;
-		}
-	} else {
-		if (ircst->prev_val == 2) {
-			ircst->position--;
-			ircst->prev_val = 3;
-			return IRQ_HANDLED;
-		}
+	if (ircst->prev_phase == 3) {
+		ircst->position++;
+		ircst->prev_phase = 0;
+		ircst->direction = IRC_DIRECTION_UP;
+		return IRQ_HANDLED;
+	}
+	if (ircst->prev_phase == 2) {
+		ircst->position--;
+		ircst->prev_phase = 1;
+		ircst->direction = IRC_DIRECTION_DOWN;
+		return IRQ_HANDLED;
 	}
 
-	if (gpio_get_value(ircst->irc_gpio[0]) == HIGH) {
+	if (gpio_get_value(ircst->irc_gpio[0]) == IRC_INPUT_LOW) {
 		ircst->position++;
-		ircst->direction = RIGHT;
+		ircst->prev_phase = 0;
+		ircst->direction = IRC_DIRECTION_UP;
 	} else {
 		ircst->position--;
-		ircst->direction = LEFT;
+		ircst->prev_phase = 1;
+		ircst->direction = IRC_DIRECTION_DOWN;
 	}
-	ircst->prev_val = 3;
 	return IRQ_HANDLED;
 }
 
@@ -188,28 +186,28 @@ static irqreturn_t irc_irq_handlerBR(int irq, void *dev)
 {
 	struct gpio_irc_state *ircst = (struct gpio_irc_state *)dev;
 
-	if (ircst->direction == RIGHT) {
-		if (ircst->prev_val == 2) {
-			ircst->position++;
-			ircst->prev_val = 4;
-			return IRQ_HANDLED;
-		}
-	} else {
-		if (ircst->prev_val == 1) {
-			ircst->position--;
-			ircst->prev_val = 4;
-			return IRQ_HANDLED;
-		}
+	if (ircst->prev_phase == 1) {
+		ircst->position++;
+		ircst->prev_phase = 2;
+		ircst->direction = IRC_DIRECTION_UP;
+		return IRQ_HANDLED;
+	}
+	if (ircst->prev_phase == 0) {
+		ircst->position--;
+		ircst->prev_phase = 3;
+		ircst->direction = IRC_DIRECTION_DOWN;
+		return IRQ_HANDLED;
 	}
 
-	if (gpio_get_value(ircst->irc_gpio[0]) == LOW) {
+	if (gpio_get_value(ircst->irc_gpio[0]) != IRC_INPUT_LOW) {
 		ircst->position++;
-		ircst->direction = RIGHT;
+		ircst->prev_phase = 2;
+		ircst->direction = IRC_DIRECTION_UP;
 	} else {
 		ircst->position--;
-		ircst->direction = LEFT;
+		ircst->prev_phase = 3;
+		ircst->direction = IRC_DIRECTION_DOWN;
 	}
-	ircst->prev_val = 4;
 	return IRQ_HANDLED;
 }
 
@@ -382,6 +380,8 @@ static int gpio_irc_init(void)
 		pr_err("Inicializace GPIO se nezdarila");
 		return (-1);
 	}
+
+	ircst->prev_phase = -1;
 
 	for (i = 0; i < 4; i++) {
 		int irq_num;
