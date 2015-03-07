@@ -121,7 +121,6 @@ int create_rt_task(pthread_t *thread, int prio, void *(*start_routine) (void *),
     return ret;
 }
 
-
 int controler_step(uint32_t rp)
 {
     uint32_t ap, lp;
@@ -178,7 +177,7 @@ void wait_next_period(void)
         sample_period_time.tv_nsec -= 1000*1000*1000;
         sample_period_time.tv_sec += 1;
     }
-    clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &sample_period_time, NULL);
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &sample_period_time, NULL);
 }
 
 void stop_motor(void)
@@ -252,7 +251,7 @@ void run_speed_controller(int speed)
 
     req_speed_fract = speed * (uint64_t)(0x100000000LL / 1000.0 * 2000 / 1000.0);
 
-    clock_gettime(CLOCK_REALTIME, &sample_period_time);
+    clock_gettime(CLOCK_MONOTONIC, &sample_period_time);
     monitor_period_time = sample_period_time;
 
     if (create_rt_task(&thread_id, base_task_prio, speed_controller, NULL) != 0) {
@@ -262,7 +261,7 @@ void run_speed_controller(int speed)
 
     do {
         monitor_period_time.tv_sec += 1;
-        clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &monitor_period_time, NULL);
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &monitor_period_time, NULL);
         ap = (int32_t)act_pos;
         printf("ap=%8ld act=%5ld i_sum=%8ld\n", (long)ap, (long)ctrl_action, (long)ctrl_i_sum);
     } while(1);
@@ -273,7 +272,7 @@ void print_help(FILE *fout)
     fprintf(fout, "Possible commands:\n");
     fprintf(fout, "  setpwm <value>\n");
     fprintf(fout, "  readirc\n");
-    fprintf(fout, "  runspeed\n");
+    fprintf(fout, "  runspeed <value>\n");
 }
 
 int main(int argc, char *argv[])
