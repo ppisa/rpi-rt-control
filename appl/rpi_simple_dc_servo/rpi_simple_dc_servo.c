@@ -152,13 +152,13 @@ int controler_step(uint32_t rp)
     action = ctrl_p * err + ctrl_i_sum + ctrl_d * (err - ctrl_err_last);
     ctrl_err_last = err;
 
-    if (action > 0) {
+    if (action >= 0) {
         if (action > act_max) {
             ctrl_i_sum -= action - act_max;
             action = act_max;
         }
     } else {
-        if (action < -act_max) {
+        if (-action > act_max) {
             ctrl_i_sum -= action + act_max;
             action = -act_max;
         }
