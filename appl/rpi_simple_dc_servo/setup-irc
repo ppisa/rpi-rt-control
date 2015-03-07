@@ -1,0 +1,8 @@
+#!/bin/sh
+
+modprobe rpi_gpio_irc_module
+
+IRC_PIDS=$(ps Hxa -o command,pid | sed -n -e 's/^\[irq\/[0-9]*-irc[0-9]_ir\][ \t]*\([0-9]*\)$/\1/p')
+for P in $IRC_PIDS ; do
+  schedtool -F -p 95 $P
+done
