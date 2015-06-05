@@ -18,3 +18,4 @@ all:
 	mex $(MEXFLAGS) sfIRCInput.c      $(MEX_COMMON_C_FILES)
 	#mex $(MEXFLAGS) sfPWMOutput.c     $(MEX_COMMON_C_FILES)
 	mex $(MEXFLAGS) sfPWMwDirOutput.c $(MEX_COMMON_C_FILES)
+	mex $(MEXFLAGS) sfPMSMonSPI.c     $(MEX_COMMON_C_FILES)
