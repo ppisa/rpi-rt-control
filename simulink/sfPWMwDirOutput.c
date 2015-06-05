@@ -102,98 +102,24 @@ enum {PWM_MODE_ZERO = 0, PWM_MODE_PLUS_PWM = 1,
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-/*
-#include <string.h>
-#include <dirent.h>
-#include <assert.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-*/
+#include "rpi_gpio.h"
 
-#define BASE		0x20000000		/* registers common base address */
-#define GPIO_BASE 	(BASE + 0x200000)	/* GPIO registers base address */
-#define PWM_BASE	(BASE + 0x20C000)	/* PWM registers base address */
-#define CLK_BASE	(BASE + 0x101000)	/* CLK register base address */
-
-#define PWM_CTL		*(pwm)			/* CTL - PWM control register, select clock source and PWM mode */
-#define PWM_RNG1	*(pwm+4)		/* RNG1 - PWM divider register, cycle count and duty resolution */
-#define PWM_DAT1	*(pwm+5)		/* DAT1 - PWM duty value register*/
-
-#define PWM_CLK_CNTL	*(clk+40)		/* CLK_CNTL - control clock for PWM (on/off) */
-#define PWM_CLK_DIV	*(clk+41)		/* CLK_DIV - divisor (bits 11:0 are *quantized* floating part, 31:12 integer */
+#define PWM_CTL		(*(rpi_registers_mapping.pwm_base + 0))
+	/* CTL - PWM control register, select clock source and PWM mode */
+#define PWM_RNG1	(*(rpi_registers_mapping.pwm_base + 4))
+	/* RNG1 - PWM divider register, cycle count and duty resolution */
+#define PWM_DAT1	(*(rpi_registers_mapping.pwm_base + 5))
+	/* DAT1 - PWM duty value register*/
+#define PWM_CLK_CNTL	(*(rpi_registers_mapping.pwm_base + 40))
+	/* CLK_CNTL - control clock for PWM (on/off) */
+#define PWM_CLK_DIV	(*(rpi_registers_mapping.pwm_base + 41))
+	/* CLK_DIV - divisor (bits 11:0 are *quantized* floating part, 31:12 integer */
 
 #define LEFT		1
 #define RIGHT		-1
 
 #define GPIO_PWM	18			/* PWM pin corresponding GPIO number (ALT fn 5) */
 #define GPIO_DIR	22
-
-
-#define PAGE_SIZE 	(4*1024)
-#define BLOCK_SIZE	(4*1024)
-
-static int mapping_initialized;
-static int mem_fd;
-static void *gpio_map, *pwm_map, *clk_map;
-static volatile unsigned *gpio, *pwm, *clk;
-
-/* Configure GPIO pin for input */
-#define INP_GPIO(g) 		*(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
-/* Configure GPIO pin for output */
-#define OUT_GPIO(g) 		*(gpio+((g)/10)) |=  (1<<(((g)%10)*3))
-/* Configure GPIO pin for alternate function */
-#define SET_GPIO_ALT(g,a) 	*(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
-/* Set GPIO pin output to high  output level */
-#define GPIO_SET 	*(gpio+7)
-/* Clear GPIO pin output to low output level */
-#define GPIO_CLR 	*(gpio+10)
-/* Source: http://elinux.org/RPi_Low-level_peripherals */
-
-/*
-peripheral_registers_map:
-
-Maps registers into virtual address space and sets  *gpio, *pwm, *clk poiners
-*/
-static int peripheral_registers_map(void) {
-    if (mapping_initialized)
-        return mapping_initialized;
-
-    mapping_initialized = -1;
-
-    if ((mem_fd = open("/dev/mem", O_RDWR|O_SYNC) ) < 0) {
-        return -1;
-    }
-
-    gpio_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, mem_fd, GPIO_BASE);
-
-    if (gpio_map == MAP_FAILED) {
-        return -1;
-    }
-
-    gpio = (volatile unsigned *)gpio_map;
-
-    pwm_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, mem_fd, PWM_BASE);
-
-    if (pwm_map == MAP_FAILED) {
-        return -1;
-    }
-
-    pwm = (volatile unsigned *)pwm_map;
-
-    clk_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, mem_fd, CLK_BASE);
-
-    if (clk_map == MAP_FAILED) {
-        return -1;
-    }
-
-    clk = (volatile unsigned *)clk_map;
-
-    close(mem_fd);
-
-    mapping_initialized = 1;
-
-    return mapping_initialized;
-} /* peripheral_registers_map */
 
 /*
 pwm_output_init:
@@ -203,10 +129,8 @@ duty selectable in range 0-4000 (0-100%)
 initial PWM_MODE 0%
 */
 void pwm_output_init(void){
-    INP_GPIO(GPIO_PWM);
-    OUT_GPIO(GPIO_PWM);
-    INP_GPIO(GPIO_PWM);
-    SET_GPIO_ALT(GPIO_PWM, 5);
+    rpi_gpio_direction_output(GPIO_PWM, 0);
+    rpi_gpio_alt_fnc(GPIO_PWM, 5);
     /* initial PWM_MODE set */
     PWM_CTL = 0;
     /* disable PWM */
@@ -233,9 +157,9 @@ PWM direction bit control
 */
 void pwm_output_direction_set(int action){
     if(action >=0){
-        GPIO_CLR = 1<<GPIO_DIR;
+        rpi_gpio_set_value(GPIO_DIR, 0);
     }else{
-        GPIO_SET = 1<<GPIO_DIR;
+        rpi_gpio_set_value(GPIO_DIR, 1);
     }
 } /* pwm_output_direction_set */
 
@@ -420,13 +344,12 @@ static void mdlInitializeSampleTimes(SimStruct *S)
 static void mdlStart(SimStruct *S)
 {
   #ifndef WITHOUT_HW
-    if (peripheral_registers_map() <= 0) {
+    if (rpi_peripheral_registers_map() <= 0) {
         ssSetErrorStatus(S, "RPi low level peripherals mapping failed");
         return;
     }
     pwm_output_init();
-    INP_GPIO(GPIO_DIR);
-    OUT_GPIO(GPIO_DIR);
+    rpi_gpio_direction_output(GPIO_DIR, 0);
 
     IWORK_CHANNEL(S) = PRM_CHANNEL(S);
     IWORK_DIR_DO_BIT(S) = PRM_DIR_DO_BIT(S);
@@ -456,7 +379,7 @@ static void mdlOutputs(SimStruct *S, int_T tid)
     int_T new_mode;
 
   #ifndef WITHOUT_HW
-    if (mapping_initialized <= 0)
+    if (rpi_registers_mapping.mapping_initialized <= 0)
             return;
 
     if (IWORK_USE_FREQUENCY_INPUT(S))
@@ -527,11 +450,9 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 static void mdlTerminate(SimStruct *S)
 {
   #ifndef WITHOUT_HW
-    if (mapping_initialized <= 0)
+    if (rpi_registers_mapping.mapping_initialized <= 0)
             return;
-    munmap(gpio_map, BLOCK_SIZE);
-    munmap(pwm_map, BLOCK_SIZE);
-    munmap(clk_map, BLOCK_SIZE);
+    /*FIXME: registers unmap has to be managed by central code */
   #endif /*WITHOUT_HW*/
 }
 
