@@ -232,9 +232,9 @@ static void mdlInitializeConditions(SimStruct *S)
   #ifndef WITHOUT_HW
     spimc_state_t *spimcst = (spimc_state_t *)PWORK_SPIMC_STATE(S);
 
-    spimcst->curadc_offs[0] = 2071;
-    spimcst->curadc_offs[1] = 2074;
-    spimcst->curadc_offs[2] = 2050;
+    spimcst->curadc_offs[0] = 0; /*2072*/
+    spimcst->curadc_offs[1] = 0; /*2077*/
+    spimcst->curadc_offs[2] = 0; /*2051*/
 
     spimcst->pos_offset = -spimcst->act_pos;
 
