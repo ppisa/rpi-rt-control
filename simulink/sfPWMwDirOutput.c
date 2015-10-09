@@ -110,10 +110,22 @@ enum {PWM_MODE_ZERO = 0, PWM_MODE_PLUS_PWM = 1,
 	/* RNG1 - PWM divider register, cycle count and duty resolution */
 #define PWM_DAT1	(*(rpi_registers_mapping.pwm_base + 5))
 	/* DAT1 - PWM duty value register*/
-#define PWM_CLK_CNTL	(*(rpi_registers_mapping.pwm_base + 40))
+#define PWM_CLK_CNTL	(*(rpi_registers_mapping.clk_base + 40))
 	/* CLK_CNTL - control clock for PWM (on/off) */
-#define PWM_CLK_DIV	(*(rpi_registers_mapping.pwm_base + 41))
+#define PWM_CLK_DIV	(*(rpi_registers_mapping.clk_base + 41))
 	/* CLK_DIV - divisor (bits 11:0 are *quantized* floating part, 31:12 integer */
+
+#ifndef CLK_PASSWD
+#define CLK_PASSWD  (0x5A<<24)
+#define CLK_CTL_MASH(x)((x)<<9)
+#define CLK_CTL_BUSY    (1 <<7)
+#define CLK_CTL_KILL    (1 <<5)
+#define CLK_CTL_ENAB    (1 <<4)
+#define CLK_CTL_SRC(x) ((x)<<0)
+
+#define CLK_DIV_DIVI(x) ((x)<<12)
+#define CLK_DIV_DIVF(x) ((x)<< 0)
+#endif /*CLK_PASSWD*/
 
 #define LEFT		1
 #define RIGHT		-1
@@ -134,15 +146,15 @@ void pwm_output_init(void){
     /* initial PWM_MODE set */
     PWM_CTL = 0;
     /* disable PWM */
-    PWM_CLK_CNTL = (PWM_CLK_CNTL&~0x10)|0x5a000000;
+    PWM_CLK_CNTL = (PWM_CLK_CNTL & ~CLK_CTL_ENAB) | CLK_PASSWD;
     /* disable clock */
-    while(PWM_CLK_CNTL&0x80);
+    while(PWM_CLK_CNTL & CLK_CTL_BUSY);
     /* wait while BUSY not 0 */
-    PWM_CLK_DIV = 0x5a000000|(5<<12);
+    PWM_CLK_DIV = CLK_DIV_DIVI(5) | CLK_DIV_DIVF(0) | CLK_PASSWD;
     /* divider setup */
-    PWM_CLK_CNTL = 0x5a000016;
+    PWM_CLK_CNTL = CLK_CTL_SRC(6) | CLK_CTL_ENAB | CLK_PASSWD;
     /* chanel enable and set source to PLLD (500MHz) */
-    while(!(PWM_CLK_CNTL&0x80));
+    while(!(PWM_CLK_CNTL & CLK_CTL_BUSY));
     /* wait for BUSY to signal 1 */
     PWM_RNG1 = 4000;
     /* external counter limit - duty levels */
@@ -450,6 +462,8 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 static void mdlTerminate(SimStruct *S)
 {
   #ifndef WITHOUT_HW
+    if (rpi_registers_mapping.mapping_initialized > 0)
+            pwm_output_set_width(0);
     if (rpi_registers_mapping.mapping_initialized <= 0)
             return;
     /*FIXME: registers unmap has to be managed by central code */
