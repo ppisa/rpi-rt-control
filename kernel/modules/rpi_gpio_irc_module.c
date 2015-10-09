@@ -38,8 +38,13 @@ Linux generic GPIO infrastructue.
 #define IRC1_GPIO	23 /* GPIO 3 -> IRC channel A */
 #define IRC3_GPIO	24
 
+#if 1
+#define IRC2_GPIO	25 /* GPIO 2 -> IRC channel B */
+#define IRC4_GPIO	27
+#else
 #define IRC2_GPIO	7 /* GPIO 2 -> IRC channel B */
 #define IRC4_GPIO	8
+#endif
 
 /* #define IRQ_GPIO	25 input not used for this variant of processing */
 
