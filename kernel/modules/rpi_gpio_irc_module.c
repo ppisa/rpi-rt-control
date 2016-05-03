@@ -254,7 +254,7 @@ ssize_t irc_read(struct file *file, char *buffer, size_t length, loff_t *offset)
  */
 int irc_open(struct inode *inode, struct file *file)
 {
-	int dev_minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev_minor = MINOR(inode->i_rdev);
 	struct gpio_irc_state *ircst = &gpio_irc_0;
 
 	if (dev_minor > 0)
