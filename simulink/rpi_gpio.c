@@ -28,15 +28,39 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 
-#define BASE		0x20000000		/* registers common base address */
-#define GPIO_BASE 	(BASE + 0x200000)	/* gpio_base registers base address */
-#define PWM_BASE	(BASE + 0x20C000)	/* pwm_base registers base address */
-#define CLK_BASE	(BASE + 0x101000)	/* clk_base register base address */
+typedef enum rpi_hw_types {
+    RPI_HW_TYPE_ERROR = -1,
+    RPI_HW_TYPE_UNKNOWN = 0,
+    RPI_HW_TYPE_RPI1,
+    RPI_HW_TYPE_RPI2,
+} rpi_hw_types_t;
+
+typedef struct rpi_hw_types_map {
+    rpi_hw_types_t hw_code;
+    const char    *hw_text;
+} rpi_hw_types_map_t;
+
+const rpi_hw_types_map_t rpi_hw_types_map[] = {
+    {RPI_HW_TYPE_RPI1, "BCM2708"},
+    {RPI_HW_TYPE_RPI2, "BCM2709"},
+    {0, NULL},
+};
+
+#define RPI1_PER_BASE	0x20000000	/* registers common base address */
+#define RPI2_PER_BASE	0x3F000000	/* registers common base address */
+#define RPI_GPIO_OFFS 	(0x200000)	/* gpio_base registers base address */
+#define RPI_PWM_OFFS	(0x20C000)	/* pwm_base registers base address */
+#define RPI_CLK_OFFS	(0x101000)	/* clk_base register base address */
 
 #define PAGE_SIZE 	(4*1024)
 #define BLOCK_SIZE	(4*1024)
 
+rpi_hw_types_t rpi_hw_type = RPI_HW_TYPE_UNKNOWN;
 rpi_registers_mapping_t rpi_registers_mapping;
 
 /* Based on infromation from: http://elinux.org/RPi_Low-level_peripherals */
@@ -86,6 +110,51 @@ int rpi_gpio_alt_fnc(unsigned gpio, int alt_fnc)
     return rpi_gpio_fnc_setup(gpio, alt_fnc <= 3? alt_fnc + 4: alt_fnc == 4? 3: 2);
 }
 
+rpi_hw_types_t rpi_peripheral_find_hw_type(void)
+{
+    FILE *f_cpuinfo;
+    char *line = NULL;
+    size_t line_cap = 0;
+    size_t line_len;
+    const char *p = "Unknown";
+    const rpi_hw_types_map_t *tm;
+
+    if (rpi_hw_type != RPI_HW_TYPE_UNKNOWN)
+        return rpi_hw_type;
+
+    f_cpuinfo = fopen("/proc/cpuinfo", "r");
+    if (f_cpuinfo == NULL)
+        return RPI_HW_TYPE_ERROR;
+
+    while ((line_len = getline(&line, &line_cap, f_cpuinfo)) != -1) {
+        if (strncmp(line, "Hardware", 8) == 0) {
+            if (line[line_len - 1] == '\n') {
+                line[line_len - 1] = 0;
+            }
+            p = line + 8;
+            while (*p && isblank(*p))
+                p++;
+            if (*p != ':')
+                continue;
+            p++;
+            while (*p && isblank(*p))
+                p++;
+            for (tm = rpi_hw_types_map; tm->hw_text; tm++) {
+                if (!strcmp(p, tm->hw_text)) {
+                    rpi_hw_type = tm->hw_code;
+                }
+            }
+        }
+    }
+
+    fclose(f_cpuinfo);
+
+    if (line != NULL)
+        free(line);
+
+    return rpi_hw_type;
+}
+
 /*
 peripheral_registers_map:
 
@@ -93,17 +162,33 @@ Maps registers into virtual address space and sets  *gpio_base, *pwm_base, *clk_
 */
 int rpi_peripheral_registers_map(void)
 {
+    rpi_hw_types_t hw_type;
+    uintptr_t per_base;
     rpi_registers_mapping_t *rrmap = &rpi_registers_mapping;
     if (rrmap->mapping_initialized)
         return rrmap->mapping_initialized;
 
     rrmap->mapping_initialized = -1;
 
+    hw_type = rpi_peripheral_find_hw_type();
+
+    if ((hw_type == RPI_HW_TYPE_ERROR) ||
+        (hw_type == RPI_HW_TYPE_UNKNOWN))
+        return -1;
+
+    if (hw_type == RPI_HW_TYPE_RPI1)
+        per_base = RPI1_PER_BASE;
+    else if (hw_type == RPI_HW_TYPE_RPI2)
+        per_base = RPI2_PER_BASE;
+    else
+        return -1;
+
     if ((rrmap->mem_fd = open("/dev/mem", O_RDWR|O_SYNC) ) < 0) {
         return -1;
     }
 
-    rrmap->gpio_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, rrmap->mem_fd, GPIO_BASE);
+    rrmap->gpio_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED,
+                           rrmap->mem_fd, per_base + RPI_GPIO_OFFS);
 
     if (rrmap->gpio_map == MAP_FAILED) {
         return -1;
@@ -111,7 +196,8 @@ int rpi_peripheral_registers_map(void)
 
     rrmap->gpio_base = (volatile unsigned *)rrmap->gpio_map;
 
-    rrmap->pwm_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, rrmap->mem_fd, PWM_BASE);
+    rrmap->pwm_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED,
+                          rrmap->mem_fd, per_base + RPI_PWM_OFFS);
 
     if (rrmap->pwm_map == MAP_FAILED) {
         return -1;
@@ -119,7 +205,8 @@ int rpi_peripheral_registers_map(void)
 
     rrmap->pwm_base = (volatile unsigned *)rrmap->pwm_map;
 
-    rrmap->clk_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, rrmap->mem_fd, CLK_BASE);
+    rrmap->clk_map = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED,
+                          rrmap->mem_fd, per_base + RPI_CLK_OFFS);
 
     if (rrmap->clk_map == MAP_FAILED) {
         return -1;
