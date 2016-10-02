@@ -54,6 +54,8 @@
 char *irc_dev_name = "/dev/irc0";
 int irc_dev_fd = -1;
 int base_task_prio;
+int fifo_min_prio;
+int fifo_max_prio;
 volatile int64_t req_speed_fract;
 volatile int32_t act_speed;
 volatile uint64_t ref_pos_fract;
@@ -70,6 +72,8 @@ uint32_t pwm_max = 2000;
 uint32_t sample_period_nsec = 1000 * 1000;
 struct timespec sample_period_time;
 struct timespec monitor_period_time;
+volatile int speed_controller_started_fl;
+volatile int environment_setup_done_fl;
 
 int irc_dev_init(void)
 {
@@ -113,7 +117,7 @@ int create_rt_task(pthread_t *thread, int prio, void *(*start_routine) (void *),
         return -1;
     }
 
-    schparam.sched_priority = base_task_prio;
+    schparam.sched_priority = prio;
 
     if (pthread_attr_setschedparam(&attr, &schparam) != 0) {
         fprintf(stderr, "pthread_attr_setschedparam failed\n");
@@ -197,11 +201,15 @@ void sig_handler(int sig)
     exit(1);
 }
 
-void setup_environment(const char *argv0)
+int setup_environment(const char *argv0)
 {
     struct sigaction sigact;
-    int fifo_min_prio = sched_get_priority_min(SCHED_FIFO);
-    int fifo_max_prio = sched_get_priority_max(SCHED_FIFO);
+
+    if (environment_setup_done_fl)
+        return 0;
+
+    fifo_min_prio = sched_get_priority_min(SCHED_FIFO);
+    fifo_max_prio = sched_get_priority_max(SCHED_FIFO);
 
     base_task_prio = fifo_max_prio - 20;
     if (base_task_prio < fifo_min_prio)
@@ -209,14 +217,14 @@ void setup_environment(const char *argv0)
 
     if (rpi_bidirpwm_init() < 0) {
         fprintf(stderr, "%s: setpwm cannot initialize hardware\n", argv0);
-        exit(1);
+        return -1;
     }
 
     if (irc_dev_init() < 0) {
         fprintf(stderr, "%s: readirc device init error\n"
                         "try: modprobe rpi_gpio_irc_module\n",
                         argv0);
-        exit(1);
+        return -1;
     }
 
   #if 0
@@ -232,6 +240,10 @@ void setup_environment(const char *argv0)
     sigact.sa_handler = sig_handler;
     sigaction(SIGINT, &sigact, NULL);
     sigaction(SIGTERM, &sigact, NULL);
+
+    environment_setup_done_fl = 1;
+
+    return 0;
 }
 
 void *speed_controller(void *arg)
@@ -248,16 +260,39 @@ void *speed_controller(void *arg)
     } while(1);
 }
 
-void run_speed_controller(int speed)
+void set_speed(int speed)
+{
+    req_speed_fract = speed * (uint64_t)(0x100000000LL / 1000.0 * 2000 / 1000.0);
+}
+
+void *monitor_thread(void *arg)
+{
+    int32_t ap;
+    do {
+        monitor_period_time.tv_sec += 1;
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &monitor_period_time, NULL);
+
+        if (req_speed_fract == 0)
+            continue;
+
+        ap = (int32_t)act_pos;
+        printf("ap=%8ld act=%5ld i_sum=%8ld\n", (long)ap, (long)ctrl_action, (long)ctrl_i_sum);
+    } while(1);
+}
+
+int run_speed_controller(int speed)
 {
     uint32_t pos;
-    int32_t ap;
     pthread_t thread_id;
+    int monitor_prio;
+
+    set_speed(speed);
+
+    if (speed_controller_started_fl)
+        return 0;
 
     irc_dev_read(&pos);
     pos_offset = -pos;
-
-    req_speed_fract = speed * (uint64_t)(0x100000000LL / 1000.0 * 2000 / 1000.0);
 
     clock_gettime(CLOCK_MONOTONIC, &sample_period_time);
     monitor_period_time = sample_period_time;
@@ -266,15 +301,25 @@ void run_speed_controller(int speed)
 
     if (create_rt_task(&thread_id, base_task_prio, speed_controller, NULL) != 0) {
         fprintf(stderr, "cannot start realtime speed_controller task\n");
-        exit(1);
+        return -1;
     }
 
-    do {
-        monitor_period_time.tv_sec += 1;
-        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &monitor_period_time, NULL);
-        ap = (int32_t)act_pos;
-        printf("ap=%8ld act=%5ld i_sum=%8ld\n", (long)ap, (long)ctrl_action, (long)ctrl_i_sum);
-    } while(1);
+    monitor_prio = fifo_min_prio + 10;
+
+    if (monitor_prio > base_task_prio)
+        monitor_prio = base_task_prio - 1;
+
+    if (monitor_prio < fifo_min_prio)
+        monitor_prio = fifo_min_prio;
+
+    if (create_rt_task(&thread_id, monitor_prio, monitor_thread, NULL) != 0) {
+        fprintf(stderr, "cannot start realtime speed_controller task\n");
+        return -1;
+    }
+
+    speed_controller_started_fl = 1;
+
+    return 0;
 }
 
 int servo_setpwm_forshell(int argc, char **argv)
@@ -328,14 +373,22 @@ int servo_runspeed_forshell(int argc, char **argv)
         fprintf(stderr, "%s: setspeed requires argument\n", argv[0]);
         return -1;
     }
-    setup_environment(argv[0]);
+
+    if (setup_environment(argv[0]) < 0) {
+        fprintf(stderr, "%s: setup_environment failed\n", argv[0]);
+        return -1;
+    }
 
     value = strtol(argv[1], &p, 0);
     if (argv[1] == p) {
         fprintf(stderr, "%s: setpwm value parse error\n", argv[0]);
         return -1;
     }
-    run_speed_controller(value);
+
+    if (run_speed_controller(value) < 0) {
+        fprintf(stderr, "%s: run_speed_controller failed\n", argv[0]);
+        return -1;
+    }
 
     return 0;
 }

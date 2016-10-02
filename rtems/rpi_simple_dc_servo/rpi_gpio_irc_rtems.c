@@ -231,7 +231,7 @@ static rtems_device_driver drv_gpio_irc_read(rtems_device_major_number major,
     return RTEMS_SUCCESSFUL;
   }
 
-  *(uint32_t*)parms->buffer = -ircst->position;
+  *(uint32_t*)parms->buffer = ircst->position;
 
   parms->bytes_moved = sizeof(uint32_t);
 
@@ -383,20 +383,20 @@ static rtems_status_code drv_gpio_irc_initialize(rtems_device_major_number major
 
   ircst->prev_phase = -1;
 
-  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[0], HIGH_LEVEL,
+  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[0], RISING_EDGE,
     UNIQUE_HANDLER, false, drv_gpio_irc_irq_handlerAR, ircst) != RTEMS_SUCCESSFUL) {
     printf("failed request IRQ for %s\n", ircst->irc_gpio_name[0]);
     drv_gpio_irc_free_fn(ircst);
     return RTEMS_IO_ERROR ;
   }
-  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[2], LOW_LEVEL,
+  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[2], FALLING_EDGE,
     UNIQUE_HANDLER, false, drv_gpio_irc_irq_handlerAF, ircst) != RTEMS_SUCCESSFUL) {
     printf("failed request IRQ for %s\n", ircst->irc_gpio_name[2]);
     rtems_gpio_interrupt_handler_remove(ircst->irc_gpio[0], drv_gpio_irc_irq_handlerAR, ircst);
     drv_gpio_irc_free_fn(ircst);
     return RTEMS_IO_ERROR ;
   }
-  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[1], LOW_LEVEL,
+  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[1], FALLING_EDGE,
     UNIQUE_HANDLER, false, drv_gpio_irc_irq_handlerBF, ircst) != RTEMS_SUCCESSFUL) {
     printf("failed request IRQ for %s\n", ircst->irc_gpio_name[1]);
     rtems_gpio_interrupt_handler_remove(ircst->irc_gpio[0], drv_gpio_irc_irq_handlerAR, ircst);
@@ -404,7 +404,7 @@ static rtems_status_code drv_gpio_irc_initialize(rtems_device_major_number major
     drv_gpio_irc_free_fn(ircst);
     return RTEMS_IO_ERROR ;
   }
-  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[3], HIGH_LEVEL,
+  if (rtems_gpio_enable_interrupt(ircst->irc_gpio[3], RISING_EDGE,
     UNIQUE_HANDLER, false, drv_gpio_irc_irq_handlerBR, ircst) != RTEMS_SUCCESSFUL) {
     printf("failed request IRQ for %s\n", ircst->irc_gpio_name[3]);
     rtems_gpio_interrupt_handler_remove(ircst->irc_gpio[0], drv_gpio_irc_irq_handlerAR, ircst);
