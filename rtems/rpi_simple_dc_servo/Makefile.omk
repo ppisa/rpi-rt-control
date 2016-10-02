@@ -1,0 +1,21 @@
+default_CONFIG += CONFIG_APP_SIMPLE_DC_SERVO=y
+
+ifeq ($(CONFIG_APP_SIMPLE_DC_SERVO),y)
+
+bin_PROGRAMS = rpi_simple_dc_servo
+
+#lib_LIBRARIES = 
+
+#include_HEADERS = 
+
+rpi_simple_dc_servo_SOURCES += init.c 
+rpi_simple_dc_servo_SOURCES += rpi_gpio_irc_rtems.c
+rpi_simple_dc_servo_SOURCES += rpi_bidirpwm.c
+rpi_simple_dc_servo_SOURCES += rpi_gpio.c
+rpi_simple_dc_servo_SOURCES += rpi_simple_dc_servo.c
+
+#appfoo_EMBEDTARFILES = rootfs
+
+#lib_LOADLIBES += bar
+
+endif #CONFIG_APP_SIMPLE_DC_SERVO

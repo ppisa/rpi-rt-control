@@ -1,0 +1,5 @@
+# ICECUBE BSP for Raspberry Pi
+# This file should be symlinked as config.target into project
+# Makefile.rules directory
+RTEMS_MAKEFILE_PATH=/opt/rtems4.12/arm-rtems4.12/raspberrypi2
+#RTEMS_MAKEFILE_PATH=/opt/rtems4.11/arm-rtems4.11/raspberrypi2
