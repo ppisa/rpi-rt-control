@@ -92,30 +92,37 @@ int create_rt_task(pthread_t *thread, int prio, void *(*start_routine) (void *),
     pthread_attr_t attr;
     struct sched_param schparam;
 
+    /* Initialize pthread attribute structure by default parameters */
     if (pthread_attr_init(&attr) != 0) {
         fprintf(stderr, "pthread_attr_init failed\n");
         return -1;
     }
 
+    /* Request to switch to specified policy at thread start */
     if (pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) != 0) {
         fprintf(stderr, "pthread_attr_setinheritsched failed\n");
         return -1;
     }
 
+    /* Select RT aware policy */
     if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) != 0) {
         fprintf(stderr, "pthread_attr_setschedpolicy SCHED_FIFO failed\n");
         return -1;
     }
 
-    schparam.sched_priority = base_task_prio;
+    /* Select priority within selected policy */
+    schparam.sched_priority = prio;
 
+    /* Check priority parameter setup to the structure */
     if (pthread_attr_setschedparam(&attr, &schparam) != 0) {
         fprintf(stderr, "pthread_attr_setschedparam failed\n");
         return -1;
     }
 
+    /* Create new thread with specified parameters and start it */
     ret = pthread_create(thread, &attr, start_routine, arg);
 
+    /* Release unneeded parameters structure */
     pthread_attr_destroy(&attr);
 
     return ret;
@@ -136,21 +143,37 @@ int controler_step(uint32_t rp)
     act_pos = ap;
     act_speed = (int32_t)(ap - lp);
 
+    /* Difference between setpoint and plant state */
     err = (int32_t)(rp - ap);
 
+    /* Limit error to not overflow 32-bit arithmetic later */
     if (err > 0x7fff)
         err = 0x7fff;
     else if (err < -0x7fff)
         err = -0x7fff;
 
+    /*
+     * Accumulation of error value for
+     * PSD (proportional-summation-difference)
+     * controller (same role as integral for
+     * continuous PID).
+    */
     if (ctrl_i == 0) {
         ctrl_i_sum = 0;
     } else {
         ctrl_i_sum += err * ctrl_i;
     }
-    action = ctrl_p * err + ctrl_i_sum + ctrl_d * (err - ctrl_err_last);
+
+    /* Compute control action */
+    action = ctrl_p * err + /* proportional component */
+             ctrl_i_sum +   /* "integral" component */
+                 /* difference/"derivative" component */
+             ctrl_d * (err - ctrl_err_last);
+
+    /* Store error value for difference computation in next iteration */
     ctrl_err_last = err;
 
+    /* Anti-windup algorithm */
     if (action >= 0) {
         if (action > act_max) {
             ctrl_i_sum -= action - act_max;
@@ -163,6 +186,10 @@ int controler_step(uint32_t rp)
         }
     }
 
+   /*
+    * Scale the action value to enable computation
+    * in fixed/integer arithmetic format
+    */
     ctrl_action = action >> fract_bits;
     rpi_bidirpwm_set(action >> fract_bits);
 
@@ -253,6 +280,8 @@ void run_speed_controller(int speed)
 
     clock_gettime(CLOCK_MONOTONIC, &sample_period_time);
     monitor_period_time = sample_period_time;
+
+    ref_pos_fract = 500LL << 32;
 
     if (create_rt_task(&thread_id, base_task_prio, speed_controller, NULL) != 0) {
         fprintf(stderr, "cannot start realtime speed_controller task\n");
