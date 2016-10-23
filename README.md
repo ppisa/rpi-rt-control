@@ -25,13 +25,23 @@ The repository content:
    to GPIO pins.
  * [rpi_simple_dc_servo](appl/rpi_simple_dc_servo) -
    userspace DC motor control application which uses IRC driver
-   and dirrect access to PWM and GPIO for direction output.
+   and direct access to PWM and GPIO for direction output.
  * [rpi_dc_motor_control](simulink/rpi_dc_motor_control.slx) -
    the same application but implemented as Simulink model which
    uses C S-function implementation for PWM output and IRC
-   driver read.
+   driver read. More at [lintarget](http://lintarget.sourceforge.net/rpi-motor-control/index.html).
+ * [rpi_pmsm_motor_control](simulink/rpi_pmsm_motor_control.slx) -
+   Simulink model for 3-phase BLDC/PMSM motor control which
+   uses small Microsemi AGL125V5-VQ100 chip connected over SPI
+   to implement IRC counter, 3x PWM modulation and current
+   ADC conversion from HAL effect based current sensors on power
+   stage board. More at [lintarget](http://lintarget.sourceforge.net/rpi-pmsm-control/index.html).
+ * [rpi_simple_dc_servo](rtems/rpi_simple_dc_servo) ported to [RTEMS](http://www.rtems.org/) RTOS -
+   it is same DC motor control demo where IRC processing is ported
+   as RTEMS driver. PWM and GPIO are accessed directly from controller sources.
 
-More information about project can be found in [InstallFest 2015 presentation slides](http://cmp.felk.cvut.cz/~pisa/installfest/rpi_overlay_and_rt.pdf).
+More information about project can be found in [InstallFest 2015 presentation slides](http://cmp.felk.cvut.cz/~pisa/installfest/rpi_overlay_and_rt.pdf) and
+[LinuxDays 2016 slides](https://www.linuxdays.cz/2016/video/Pavel_Pisa-Procesorove_systemy_a_nejen_GNU_Linux_v_ridicich_aplikacich.pdf).
 [Lintarget](http://lintarget.sourceforge.net/) project the real RT-aware
 Simulink ERT target is used for Simulink based experiment.
 The article [Usable Simulink Embedded Coder Target for Linux](http://rtime.felk.cvut.cz/publications/public/ert_linux.pdf)
