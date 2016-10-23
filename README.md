@@ -37,7 +37,7 @@ The repository content:
    ADC conversion from HAL effect based current sensors on power
    stage board. More at [lintarget](http://lintarget.sourceforge.net/rpi-pmsm-control/index.html).
  * [rpi_simple_dc_servo](rtems/rpi_simple_dc_servo) ported to [RTEMS](http://www.rtems.org/) RTOS -
-   it is same DC motor control demo where IRC processing is ported
+   it is the same DC motor control demo where IRC processing is ported
    as RTEMS driver. PWM and GPIO are accessed directly from controller sources.
 
 More information about project can be found in [InstallFest 2015 presentation slides](http://cmp.felk.cvut.cz/~pisa/installfest/rpi_overlay_and_rt.pdf) and
