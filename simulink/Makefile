@@ -19,3 +19,4 @@ all:
 	#mex $(MEXFLAGS) sfPWMOutput.c     $(MEX_COMMON_C_FILES)
 	mex $(MEXFLAGS) sfPWMwDirOutput.c $(MEX_COMMON_C_FILES)
 	mex $(MEXFLAGS) sfPMSMonSPI.c     $(MEX_COMMON_C_FILES)
+	mex $(MEXFLAGS) sfPMSMonZynq3pmdrv1.c $(MEX_COMMON_C_FILES)
