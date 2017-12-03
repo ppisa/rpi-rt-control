@@ -40,7 +40,7 @@
 
 #define Z3PMDRV1_REG_ADC_SQN_STAT_o    0x0020
 
-#define Z3PMDRV1_REG_ADSQST_SQN_m  0x000001ff
+#define Z3PMDRV1_REG_ADSQST_SQN_m  0x00000fff
 #define Z3PMDRV1_REG_ADSQST_HAL1_m 0x00010000
 #define Z3PMDRV1_REG_ADSQST_HAL2_m 0x00020000
 #define Z3PMDRV1_REG_ADSQST_HAL3_m 0x00040000
@@ -119,11 +119,11 @@ int z3pmdrv1_transfer(z3pmdrv1_state_t *z3pmcst)
 	sqn_stat = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC_SQN_STAT_o);
 	z3pmcst->curadc_sqn = sqn_stat & Z3PMDRV1_REG_ADSQST_SQN_m;
 
+	z3pmcst->curadc_cumsum[0] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC1_o);
+
+	z3pmcst->curadc_cumsum[1] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC2_o);
+
 	z3pmcst->curadc_cumsum[2] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC3_o);
-
-	z3pmcst->curadc_cumsum[0] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC2_o);
-
-	z3pmcst->curadc_cumsum[1] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC1_o);
 
 	z3pmcst->hal_sensors =
 		((sqn_stat & Z3PMDRV1_REG_ADSQST_HAL1_m)?1:0) |
@@ -216,11 +216,11 @@ int z3pmdrv1_init(z3pmdrv1_state_t *z3pmcst)
 	z3pmcst->curadc_sqn = sqn_stat & Z3PMDRV1_REG_ADSQST_SQN_m;
 	z3pmcst->curadc_sqn_last = z3pmcst->curadc_sqn;
 
+	z3pmcst->curadc_cumsum[0] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC1_o);
+
+	z3pmcst->curadc_cumsum[1] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC2_o);
+
 	z3pmcst->curadc_cumsum[2] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC3_o);
-
-	z3pmcst->curadc_cumsum[0] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC2_o);
-
-	z3pmcst->curadc_cumsum[1] = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_ADC1_o);
 
 	z3pmcst->index_pos = z3pmdrv1_reg_rd(z3pmcst, Z3PMDRV1_REG_IRC_IDX_POS_o);
 

@@ -326,7 +326,7 @@ static void mdlOutputs(SimStruct *S, int_T tid)
     curadc_sqn_diff = z3pmcst->curadc_sqn;
     if (diff_to_last_fl) {
       curadc_sqn_diff -= z3pmcst->curadc_sqn_last;
-      curadc_sqn_diff &= 0x1ff;
+      curadc_sqn_diff &= 0xfff;
     }
 
     if ((curadc_sqn_diff > 1) && (curadc_sqn_diff <= 450)) {
