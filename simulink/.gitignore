@@ -1,0 +1,6 @@
+rpi_dc_motor_control
+rpi_pmsm_motor_control
+*.mexa64
+slprj
+zynq_pmsm_motor_control
+zynq_pmsm_motor_control_ert_linux
