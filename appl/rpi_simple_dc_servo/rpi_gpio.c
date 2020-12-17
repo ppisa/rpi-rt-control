@@ -40,14 +40,26 @@ typedef enum rpi_hw_types {
     RPI_HW_TYPE_RPI2,
 } rpi_hw_types_t;
 
+typedef struct rpi_mode_types_map {
+    rpi_hw_types_t hw_code;
+    const char    *model_text;
+} rpi_model_types_map_t;
+
 typedef struct rpi_hw_types_map {
     rpi_hw_types_t hw_code;
     const char    *hw_text;
+    const rpi_model_types_map_t *model_map;
 } rpi_hw_types_map_t;
 
+const rpi_model_types_map_t rpi_bcm2835_model_types_map[] = {
+    {RPI_HW_TYPE_RPI2, "Raspberry Pi 2 Model B"},
+    {0, NULL},
+};
+
 const rpi_hw_types_map_t rpi_hw_types_map[] = {
-    {RPI_HW_TYPE_RPI1, "BCM2708"},
-    {RPI_HW_TYPE_RPI2, "BCM2709"},
+    {RPI_HW_TYPE_RPI1,    "BCM2708"},
+    {RPI_HW_TYPE_RPI2,    "BCM2709"},
+    {RPI_HW_TYPE_UNKNOWN, "BCM2835", rpi_bcm2835_model_types_map},
     {0, NULL},
 };
 
@@ -118,6 +130,8 @@ rpi_hw_types_t rpi_peripheral_find_hw_type(void)
     size_t line_len;
     const char *p = "Unknown";
     const rpi_hw_types_map_t *tm;
+    const rpi_model_types_map_t *m;
+    const rpi_model_types_map_t *model_map = NULL;
 
     if (rpi_hw_type != RPI_HW_TYPE_UNKNOWN)
         return rpi_hw_type;
@@ -127,21 +141,37 @@ rpi_hw_types_t rpi_peripheral_find_hw_type(void)
         return RPI_HW_TYPE_ERROR;
 
     while ((line_len = getline(&line, &line_cap, f_cpuinfo)) != -1) {
-        if (strncmp(line, "Hardware", 8) == 0) {
-            if (line[line_len - 1] == '\n') {
-                line[line_len - 1] = 0;
-            }
-            p = line + 8;
-            while (*p && isblank(*p))
-                p++;
-            if (*p != ':')
-                continue;
+        const char *key, *key_end, *val;
+        if (line[line_len - 1] == '\n') {
+            line[line_len - 1] = 0;
+        }
+        p = line;
+        key = p;
+        while (isalnum(*p))
             p++;
-            while (*p && isblank(*p))
-                p++;
+        key_end = p;
+        while (*p && isblank(*p))
+            p++;
+        if (*(p++) != ':')
+            continue;
+        while (*p && isblank(*p))
+            p++;
+        val = p;
+        /* printf("key %.*s = %s\n", key_end - key, key, val); */
+        if ((strncmp(key, "Hardware", 8) == 0) && (key_end - key == 8)) {
             for (tm = rpi_hw_types_map; tm->hw_text; tm++) {
-                if (!strcmp(p, tm->hw_text)) {
+                if (!strcmp(val, tm->hw_text)) {
                     rpi_hw_type = tm->hw_code;
+                    model_map = tm->model_map;
+                    /* printf("Match HW %s\n", tm->hw_text); */
+                }
+            }
+        }
+        if ((strncmp(key, "Model", 5) == 0)  && (key_end - key == 5) && (model_map != NULL)) {
+            for (m = model_map; m->model_text; m++) {
+                if (!strcmp(val, m->model_text)) {
+                    rpi_hw_type = m->hw_code;
+                    /* printf("Match model %s\n", m->model_text); */
                 }
             }
         }

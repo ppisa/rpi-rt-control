@@ -1,5 +1,7 @@
 ifneq ("$(shell uname -m)","armv6l")
+ifneq ("$(shell uname -m)","armv7l")
 CC = arm-rpi-linux-gnueabihf-gcc
+endif
 endif
 
 CFLAGS += -Wall -O2 -ggdb

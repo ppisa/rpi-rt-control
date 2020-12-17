@@ -230,6 +230,7 @@ void setup_environment(const char *argv0)
 
     if (rpi_bidirpwm_init() < 0) {
         fprintf(stderr, "%s: setpwm cannot initialize hardware\n", argv0);
+        fprintf(stderr, "%s: check rpi_hw_types_map in rpi_gpio.c to match /proc/cpuinfo\n", argv0);
         exit(1);
     }
 
@@ -328,6 +329,7 @@ int main(int argc, char *argv[])
         }
         if (rpi_bidirpwm_init() < 0) {
             fprintf(stderr, "%s: setpwm cannot initialize hardware\n", argv[0]);
+            fprintf(stderr, "%s: check rpi_hw_types_map in rpi_gpio.c to match /proc/cpuinfo\n", argv[0]);
             exit(1);
         }
         value = strtol(argv[2], &p, 0);
